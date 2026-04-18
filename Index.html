@@ -625,6 +625,11 @@
                             document.querySelector('.Main_Menu').style.display = 'none';
                             document.querySelector('.Windows').style.display = 'none';
                         });
+
+                        document.getElementById('Menu_View_Signitures').addEventListener('click', function() {
+                            document.querySelector('.View_Signitures_Window').style.display = 'flex';
+                            document.querySelector('.Menu_Windows').style.display = 'flex';
+                        });
                     </script>
                 </div>
                 <style aria-label="Main_Menu_Style">
@@ -682,6 +687,130 @@
                                 document.querySelector('.Menu_Sharable_QR_Window').style.display = 'none';
                                 document.querySelector('.Menu_Windows').style.display = 'none';
                             });
+                        </script>
+                    </div>
+
+                    <div class="View_Signitures_Window">
+                        <div class="Database_Signitures">
+                            <div class="Database_Signitures_List">
+                                
+                            </div>
+
+                            <style aria-label="Database_Signitures_List_Style">
+                                .Database_Signitures {
+                                    position: absolute;
+                                    top: 10px;
+                                    width: calc(100% - 20px);
+                                    height: calc(100% - 50px);
+                                    background-color: rgb(255, 255, 255);
+                                    border: 1px solid rgb(0, 0, 0);
+                                    display: flex;
+                                    flex-direction: column;
+                                    justify-content: flex-start;
+                                    align-items: stretch;
+                                    overflow: hidden;
+                                    overflow-y: scroll;
+                                }
+
+                                .Database_Signitures_List {
+                                    width: 100%;
+                                    display: flex;
+                                    flex-direction: column;
+                                }
+                            </style>
+                            <script aria-label="Database_Signitures_Script">
+                                const signaturesContainer = document.querySelector('.Database_Signitures');
+                                const signaturesList = document.querySelector('.Database_Signitures_List');
+
+                                async function getAllSignatureRecords() {
+                                    const db = await openSignitureDb();
+                                    return new Promise(function(resolve, reject) {
+                                        const transaction = db.transaction(signitureDbConfig.storeName, 'readonly');
+                                        const store = transaction.objectStore(signitureDbConfig.storeName);
+                                        const request = store.getAll();
+
+                                        request.onsuccess = function() {
+                                            resolve(request.result || []);
+                                        };
+
+                                        request.onerror = function() {
+                                            reject(request.error);
+                                        };
+                                    });
+                                }
+
+                                async function renderSignaturesColumn() {
+                                    try {
+                                        const records = await getAllSignatureRecords();
+                                        signaturesList.innerHTML = '';
+
+                                        if (!records.length) {
+                                            signaturesList.innerHTML = '<div style="color: #666; font-size: 12px;">No signatures</div>';
+                                            return;
+                                        }
+
+                                        const wrapper = document.createElement('div');
+                                        wrapper.style.display = 'flex';
+                                        wrapper.style.flexDirection = 'column';
+                                        wrapper.style.gap = '10px';
+                                        wrapper.style.width = '100%';
+
+                                        records.forEach(function(record) {
+                                            const img = document.createElement('img');
+                                            img.src = record.imageDataUrl;
+                                            img.alt = 'Signature #' + record.id;
+                                            img.style.width = '100%';
+                                            img.style.maxHeight = '80px';
+
+                                            img.style.border = '1px solid #ddd';
+                                            
+                                            img.style.objectFit = 'contain';
+                                            img.style.backgroundColor = '#fff';
+
+                                            wrapper.appendChild(img);
+                                        });
+
+                                        signaturesList.appendChild(wrapper);
+                                    } catch (error) {
+                                        console.error('Failed to load signatures.', error);
+                                        signaturesList.innerHTML = '<div style="color: red; font-size: 12px;">Error loading signatures</div>';
+                                    }
+                                }
+
+                                document.getElementById('Menu_View_Signitures').addEventListener('click', async function() {
+                                    await renderSignaturesColumn();
+                                });
+                            </script>
+                        </div>
+
+                        <button id="View_Signitures_Window_Close_Button">[ Close ]</button>
+
+                        <style aria-label="View_Signitures_Window_Style">
+                            .View_Signitures_Window {
+                                position: relative;
+                                width: 250px;
+                                height: 550px;
+                                background-color: rgb(255, 255, 255);
+                                border: 1px solid rgb(0, 0, 0);
+                                display: flex;
+                                justify-content: center;
+                                align-items: center;
+                                display: none;
+                            }
+                            
+                            #View_Signitures_Window_Close_Button {
+                                position: absolute;
+                                bottom: 10px;
+                            }
+                        </style>
+                        <script aria-label="View_Signitures_Window_Script">
+                            document.getElementById('View_Signitures_Window_Close_Button').addEventListener('click', function() {
+                                document.querySelector('.View_Signitures_Window').style.display = 'none';
+                                document.querySelector('.Menu_Windows').style.display = 'none';
+                            });
+
+                            // Add signature images
+                            
                         </script>
                     </div>
 
