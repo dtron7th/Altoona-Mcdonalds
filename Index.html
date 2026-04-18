@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+
+    <!-- --Book_Mark - (Color Variables Style)--------------------- -->
+    <style aria-label="Color_Vars">
+        :root {
+            --Main_UI_Button: #00000031;
+            --Main_UI_Text_Color: #ffffff;
+            --Main_UI_Backdrop: blur(20px);
+            --Main_Font_Size: 10px;
+        }
+    </style>
+
+    <!-- --Book_Mark - (Global Styles)--------------------- -->
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Main_Font', monospace;
+        }
+
+        *::before {
+            content: attr(class) attr(id);
+            position: absolute;
+            font-size: 8px;
+            color: yellow;
+            background: rgba(0, 0, 0, 0.582);
+            padding: 2px;
+            z-index: 9999;
+            pointer-events: none;
+            display: none;
+        }
+
+        @font-face {
+            font-family: 'Main_Font';
+            src: url('Fonts/bront-master/bront-master/DejaVuSansMono.ttf') format('woff2');
+            font-weight: normal;
+            font-style: normal;
+        }
+
+        body {
+            width: 100dvw;
+            height: 100dvh;
+        }
+    </style>
+
+    <div class="Dev_Settings">
+        <div class="Buttons">
+            <button id="Dev_Settings_Lables">LAB</button>
+            <button id="Dev_Settings_Border">BOR</button>
+        </div>
+        <style aria-label="Dev_Settings_Style">
+            .Dev_Settings {
+                position: absolute;
+                right: 10px;
+                top: 10px;
+                width: 30px;
+                height: 55px;
+                background: rgb(0, 0, 0);
+                z-index: 9999;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                justify-content: center;
+            }
+
+            .Dev_Settings .Buttons {
+                display: flex;
+                flex-direction: column;
+                gap: 5px;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                justify-content: center;
+            }
+
+            .Dev_Settings .Buttons button {
+                width: 20px;
+                height: 20px;
+                background: rgb(0, 119, 255);
+                outline: none;
+                border: none;
+                font-size: 8px;
+                color: rgb(255, 255, 255);
+            }
+        </style>
+        <script aria-label="Dev_Settings_Script">
+
+            const devSettings = document.querySelector('.Dev_Settings');
+            let isDragging = false;
+            let offsetX, offsetY;
+
+            devSettings.addEventListener('mousedown', function(e) {
+                isDragging = true;
+                offsetX = e.clientX - devSettings.offsetLeft;
+                offsetY = e.clientY - devSettings.offsetTop;
+            });
+
+            document.addEventListener('mousemove', function(e) {
+                if (isDragging) {
+                    devSettings.style.left = (e.clientX - offsetX) + 'px';
+                    devSettings.style.top = (e.clientY - offsetY) + 'px';
+                }
+            });
+
+            document.addEventListener('mouseup', function() {
+                isDragging = false;
+            });
+
+            devSettings.addEventListener('touchstart', function(e) {
+                isDragging = true;
+                offsetX = e.touches[0].clientX - devSettings.offsetLeft;
+                offsetY = e.touches[0].clientY - devSettings.offsetTop;
+            });
+
+            document.addEventListener('touchmove', function(e) {
+                if (isDragging) {
+                    devSettings.style.left = (e.touches[0].clientX - offsetX) + 'px';
+                    devSettings.style.top = (e.touches[0].clientY - offsetY) + 'px';
+                }
+            });
+
+            document.addEventListener('touchend', function() {
+                isDragging = false;
+            });
+            
+        
+            document.addEventListener('DOMContentLoaded', function() {
+                document.getElementById('Dev_Settings_Lables').addEventListener('click', function() {
+                    const style = document.createElement('style');
+                    style.id = 'dev-labels-style';
+                    const existingStyle = document.getElementById('dev-labels-style');
+                    if (existingStyle) {
+                        existingStyle.remove();
+                    } else {
+                        style.textContent = '*::before { display: flex !important; }';
+                        document.head.appendChild(style);
+                    }
+                });
+            });
+            
+            document.addEventListener('DOMContentLoaded', function() {
+                document.getElementById('Dev_Settings_Border').addEventListener('click', function() {
+                    const style = document.createElement('style');
+                    style.id = 'dev-border-style';
+                    const existingStyle = document.getElementById('dev-border-style');
+                    if (existingStyle) {
+                        existingStyle.remove();
+                    } else {
+                        style.textContent = '* { border: 1px solid red !important; }';
+                        document.head.appendChild(style);
+                    }
+                });
+            });
+        </script>
+    </div>
+</head>
+<body>
+    
+</body>
+</html>
