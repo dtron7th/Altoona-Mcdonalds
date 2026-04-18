@@ -49,6 +49,7 @@
         }
     </style>
 
+    <!-- --Book_Mark - (Dev Settings Panel)--------------------- -->
     <div class="Dev_Settings">
         <div class="Buttons">
             <button id="Dev_Settings_Lables">LAB</button>
@@ -161,11 +162,11 @@
     </div>
 </head>
 <body>
+    <!-- --Book_Mark - (Main_Page Container)--------------------- -->
     <div class="Main_Page">
-        <!-- --Book_Mark - (Main_Page Styles)--------------------- -->
+        <!-- --Book_Mark - (Top Menu Bar)--------------------- -->
         <div class="Menu">
-            <button>[ Menu ]</button>
-            <button>[ Account ]</button>
+            <button id="Menu_Button">[ Menu ]</button>
             <style aria-label="Menu_Style">
                 .Menu {
                     position: absolute;
@@ -187,9 +188,13 @@
                 }
             </style>
             <script aria-label="Menu_Script">
-                
+                document.getElementById('Menu_Button').addEventListener('click', function() {
+                    document.querySelector('.Main_Menu').style.display = 'flex';
+                    document.querySelector('.Windows').style.display = 'flex';
+                });
             </script>
         </div>
+        <!-- --Book_Mark - (Logo Section)--------------------- -->
         <div class="Logo">
             <p class="Title">MCD Game Club</p>
             <img src="Images/Logo/McDonald's-Logo.wine.svg" alt="Logo" id="Logo_Image">
@@ -226,6 +231,7 @@
             </script>
 
         </div>
+        <!-- --Book_Mark - (Support Buttons)--------------------- -->
         <div class="Support_Buttons">
             <button>Support</button>
             <button>Un Support</button>
@@ -255,10 +261,11 @@
                 
             </script>
         </div>
+        <!-- --Book_Mark - (Stats Display)--------------------- -->
         <div class="Stats">
             <span id="Funds">MCDG Fund Plan<br>$0.00</span>
             <span id="Signitures">Signitures<br>0</span>
-            <span id="Signitures">In support<br>0</span>
+            <span id="In_Support">In support<br>0</span>
             <style aria-label="Stats_Style">
                 .Stats {
                     position: absolute;
@@ -280,9 +287,10 @@
                 // TODO: Add stats logic here
             </script>
         </div>
+        <!-- --Book_Mark - (Bottom Action Buttons)--------------------- -->
         <div class="Bottom_Buttons">
-            <button>Add your signiture</button>
-            <button>Donate to build games</button>
+            <button id="Add_Signiture_Button">Add your signiture</button>
+            <button id="Donate_Button">Donate to build games</button>
             <style aria-label="Bottom_Buttons_Style">
                 .Bottom_Buttons {
                     position: absolute;
@@ -305,9 +313,13 @@
                 }
             </style>
             <script aria-label="Bottom_Buttons_Script">
-
+                document.getElementById('Add_Signiture_Button').addEventListener('click', function() {
+                    document.querySelector('.Signiture_Window').style.display = 'flex';
+                    document.querySelector('.Windows').style.display = 'flex';
+                });
             </script>
         </div>
+        <!-- --Book_Mark - (Main_Page Styles)--------------------- -->
         <style aria-label="Main_Page_Style">
             .Main_Page {
                 width: 100dvw;
@@ -325,9 +337,395 @@
 
         </script>
 
+        <!-- --Book_Mark - (Windows Overlay & Modal Windows)--------------------- -->
         <div class="Windows">
+            <!-- --Book_Mark - (Signature Modal Window)--------------------- -->
+            <div class="Signiture_Window">
+                <canvas id="Signiture_Canvas" width="350" height="150"></canvas>
+                <div class="Buttons">
+                    <button class="Signiture_Submit_Button">[ Submit ]</button>
+                    <button class="Signiture_Clear_Button">[ Clear ]</button>
+                    <button class="Signiture_Close_Button">[ Close ]</button>
+                </div>
+                <style aria-label="Signiture_Window_Style">
+                    .Signiture_Window {
+                        position: relative;
+                        width: 350px;
+                        height: 150px;
+                        background-color: rgb(255, 255, 255);
+                        border: 1px solid rgb(0, 0, 0);
+                        display: flex;
+                        justify-content: center;
+                        align-items: center;
+                        overflow: hidden;
+                        gap: 10px;
+                        display: none;
+                    }
 
+                    #Signiture_Canvas {
+                        width: 350px;
+                        height: 150px;
+                        touch-action: none;
+                        cursor: crosshair;
+                    }
+                    
+                    .Signiture_Window .Buttons {
+                        position: absolute;
+                        bottom: 10px;
+                        display: flex;
+                        gap: 10px;
+                    }
+                    
+                    .Signiture_Window .Buttons button {
+                        border: none;
+                        outline: none;
+                        background: none;
+                        font-size: 12px;
+                        cursor: pointer;
+                    }
+                </style>
+                <!-- --Book_Mark - (Signature Canvas Drawing & IndexedDB)--------------------- -->
+                <script aria-label="Signiture_Window_Script">
+                    const signitureWindow = document.querySelector('.Signiture_Window');
+                    const windowsOverlay = document.querySelector('.Windows');
+                    const signitureCanvas = document.getElementById('Signiture_Canvas');
+                    const signitureContext = signitureCanvas.getContext('2d');
+
+                    const signitureSubmitButton = document.querySelector('.Signiture_Submit_Button');
+                    const signitureClearButton = document.querySelector('.Signiture_Clear_Button');
+                    const signitureCounter = document.querySelector('.Stats #Signitures');
+
+                    let isDrawing = false;
+                    let hasSignitureStroke = false;
+
+                    const signitureDbConfig = {
+                        name: 'MCD_Game_Club_DB',
+                        version: 1,
+                        storeName: 'signitures'
+                    };
+
+                    let signitureDbPromise;
+
+                    function openSignitureDb() {
+                        if (signitureDbPromise) {
+                            return signitureDbPromise;
+                        }
+
+                        signitureDbPromise = new Promise(function(resolve, reject) {
+                            const request = indexedDB.open(signitureDbConfig.name, signitureDbConfig.version);
+
+                            request.onupgradeneeded = function(event) {
+                                const db = event.target.result;
+                                if (!db.objectStoreNames.contains(signitureDbConfig.storeName)) {
+                                    db.createObjectStore(signitureDbConfig.storeName, {
+                                        keyPath: 'id',
+                                        autoIncrement: true
+                                    });
+                                }
+                            };
+
+                            request.onsuccess = function() {
+                                resolve(request.result);
+                            };
+
+                            request.onerror = function() {
+                                reject(request.error);
+                            };
+                        });
+
+                        return signitureDbPromise;
+                    }
+
+                    async function addSignitureToDb(imageDataUrl) {
+                        const db = await openSignitureDb();
+
+                        return new Promise(function(resolve, reject) {
+                            const transaction = db.transaction(signitureDbConfig.storeName, 'readwrite');
+                            const store = transaction.objectStore(signitureDbConfig.storeName);
+                            const request = store.add({
+                                imageDataUrl: imageDataUrl,
+                                createdAt: new Date().toISOString()
+                            });
+
+                            request.onsuccess = function() {
+                                resolve();
+                            };
+
+                            request.onerror = function() {
+                                reject(request.error);
+                            };
+                        });
+                    }
+
+                    async function getSignitureCountFromDb() {
+                        const db = await openSignitureDb();
+
+                        return new Promise(function(resolve, reject) {
+                            const transaction = db.transaction(signitureDbConfig.storeName, 'readonly');
+                            const store = transaction.objectStore(signitureDbConfig.storeName);
+                            const countRequest = store.count();
+
+                            countRequest.onsuccess = function() {
+                                resolve(countRequest.result || 0);
+                            };
+
+                            countRequest.onerror = function() {
+                                reject(countRequest.error);
+                            };
+                        });
+                    }
+
+                    async function refreshSignitureCounterFromDb() {
+                        try {
+                            const count = await getSignitureCountFromDb();
+                            signitureCounter.dataset.count = String(count);
+                            signitureCounter.innerHTML = 'Signitures<br>' + count;
+                        } catch (error) {
+                            console.error('Unable to load signitures from database.', error);
+                        }
+                    }
+
+                    function closeSignitureWindow() {
+                        signitureWindow.style.display = 'none';
+                        windowsOverlay.style.display = 'none';
+                    }
+
+                    function clearSignitureCanvas() {
+                        signitureContext.clearRect(0, 0, signitureCanvas.width, signitureCanvas.height);
+                        hasSignitureStroke = false;
+                    }
+
+                    function getCanvasPoint(event) {
+                        const rect = signitureCanvas.getBoundingClientRect();
+                        const scaleX = signitureCanvas.width / rect.width;
+                        const scaleY = signitureCanvas.height / rect.height;
+
+                        return {
+                            x: (event.clientX - rect.left) * scaleX,
+                            y: (event.clientY - rect.top) * scaleY
+                        };
+                    }
+
+                    signitureContext.lineWidth = 1;
+                    signitureContext.lineCap = 'round';
+                    signitureContext.lineJoin = 'round';
+                    signitureContext.strokeStyle = 'rgb(0, 0, 0)';
+
+                    signitureCanvas.addEventListener('pointerdown', function(event) {
+                        event.preventDefault();
+                        const point = getCanvasPoint(event);
+                        isDrawing = true;
+                        signitureCanvas.setPointerCapture(event.pointerId);
+                        signitureContext.beginPath();
+                        signitureContext.moveTo(point.x, point.y);
+                    });
+
+                    signitureCanvas.addEventListener('pointermove', function(event) {
+                        if (!isDrawing) {
+                            return;
+                        }
+
+                        event.preventDefault();
+                        const point = getCanvasPoint(event);
+                        signitureContext.lineTo(point.x, point.y);
+                        signitureContext.stroke();
+                        hasSignitureStroke = true;
+                    });
+
+                    signitureCanvas.addEventListener('pointerup', function(event) {
+                        if (!isDrawing) {
+                            return;
+                        }
+
+                        event.preventDefault();
+                        isDrawing = false;
+                        signitureCanvas.releasePointerCapture(event.pointerId);
+                        signitureContext.closePath();
+                    });
+
+                    signitureCanvas.addEventListener('pointercancel', function(event) {
+                        if (!isDrawing) {
+                            return;
+                        }
+
+                        isDrawing = false;
+                        signitureCanvas.releasePointerCapture(event.pointerId);
+                        signitureContext.closePath();
+                    });
+
+                    signitureClearButton.addEventListener('click', function() {
+                        clearSignitureCanvas();
+                    });
+
+                    signitureSubmitButton.addEventListener('click', async function() {
+                        if (!hasSignitureStroke) {
+                            return;
+                        }
+
+                        const signitureImageData = signitureCanvas.toDataURL('image/png');
+
+                        try {
+                            await addSignitureToDb(signitureImageData);
+                            await refreshSignitureCounterFromDb();
+                        } catch (error) {
+                            console.error('Unable to save signiture.', error);
+                            return;
+                        }
+
+                        closeSignitureWindow();
+                        clearSignitureCanvas();
+                    });
+
+                    document.querySelector('.Signiture_Close_Button').addEventListener('click', function() {
+                        closeSignitureWindow();
+                    });
+
+                    refreshSignitureCounterFromDb();
+                </script>
+            </div>
+
+            <!-- --Book_Mark - (Main Menu Window)--------------------- -->
+            <div class="Main_Menu">
+                <div class="Menu_List">
+                    <button id="Menu_Sharable_QR">[ Sharable QR ]</button>
+                    <button id="Menu_View_Signitures">[ View Signitures ]</button>
+                    <button id="Menu_Other">[ Other ]</button>
+                    <button id="Menu_Close_Button">[ Close ]</button>
+
+                    <style aria-label="Menu_List_Style">
+                        .Menu_List {
+                            position: relative;
+                            height: 100%;
+                            display: flex;
+                            flex-direction: column;
+                            justify-content: center;
+                            align-items: center;
+                            gap: 10px;
+                        }
+                        button {
+                            border: none;
+                            outline: none;
+                            background: none;
+                            font-size: 12px;
+                            cursor: pointer;        
+                        }
+
+                        #Menu_Close_Button {
+                            position: absolute;
+                            bottom: 10px;
+                        }
+                    </style>
+                    <script aria-label="Menu_List_Script">
+                        document.getElementById('Menu_Sharable_QR').addEventListener('click', function() {
+                            document.querySelector('.Menu_Sharable_QR_Window').style.display = 'flex';
+                            document.querySelector('.Menu_Windows').style.display = 'flex';
+                        });
+
+                        document.getElementById('Menu_Close_Button').addEventListener('click', function() {
+                            document.querySelector('.Main_Menu').style.display = 'none';
+                            document.querySelector('.Windows').style.display = 'none';
+                        });
+                    </script>
+                </div>
+                <style aria-label="Main_Menu_Style">
+                    .Main_Menu {
+                        width: 200px;
+                        height: 300px;
+                        background-color: rgb(255, 255, 255);
+                        border: 1px solid rgb(0, 0, 0);
+                        display: flex;
+                        justify-content: center;
+                        align-items: center;
+                        display: none;
+                    }
+                    
+                    .Main_Menu .Menu_List {
+                        display: flex;
+                        flex-direction: column;
+                        gap: 10px;
+                    }
+                </style>
+                <Script aria-label="Main_Menu_Script">
+
+                </Script>
+
+                <div class="Menu_Windows">
+                    <div class="Menu_Sharable_QR_Window">
+                        <img  id="Webaddress_QR_Code" src="/Images/Other/url_qrcodecreator.com_16_53_17.svg" alt="">
+                        <button id="Menu_Sharable_QR_Window_Close_Button">[ Close ]</button>
+
+                        <style aria-label="Menu_Sharable_QR_Window_Style">
+                            .Menu_Sharable_QR_Window {
+                                position: relative;
+                                width: 250px;
+                                height: 250px;
+                                background-color: rgb(255, 255, 255);
+                                border: 1px solid rgb(0, 0, 0);
+                                display: flex;
+                                justify-content: center;
+                                align-items: center;
+                                display: none;
+                            }
+                            
+                            #Webaddress_QR_Code {
+                                width: 150px;
+                                height: 150px;
+                            }
+                            
+                            #Menu_Sharable_QR_Window_Close_Button {
+                                position: absolute;
+                                bottom: 10px;
+                            }
+                        </style>
+                        <script aria-label="Menu_Sharable_QR_Window_Script">
+                            document.getElementById('Menu_Sharable_QR_Window_Close_Button').addEventListener('click', function() {
+                                document.querySelector('.Menu_Sharable_QR_Window').style.display = 'none';
+                                document.querySelector('.Menu_Windows').style.display = 'none';
+                            });
+                        </script>
+                    </div>
+
+                    <style aria-label="Menu_Windows_Style">
+                        .Menu_Windows {
+                            position: absolute;
+                            top: 0;
+                            left: 0;
+                            width: 100%;
+                            height: 100%;
+                            display: flex;
+                            justify-content: center;
+                            align-items: center;
+                            display: none;
+                        }
+                    </style>
+                    <script aria-label="Menu_Windows_Script">
+
+                    </script>
+                </div>
+            </div>
+
+            <!-- --Book_Mark - (Windows Overlay & Modal Styles)--------------------- -->
+            <style aria-label="Windows_Style">
+                .Windows {
+                    position: absolute;
+                    top: 0;
+                    left: 0;
+                    width: 100%;
+                    height: 100%;
+                    background-color: rgba(0, 0, 0, 0.158);
+                    backdrop-filter: var(--Main_UI_Backdrop);
+                    display: flex;
+                    justify-content: center;
+                    align-items: center;
+                    overflow: hidden;
+                    display: none;
+                }
+            </style>
+            <script aria-label="Windows_Script">
+                
+            </script>
         </div>
+        
 
     </div>    
 </body>

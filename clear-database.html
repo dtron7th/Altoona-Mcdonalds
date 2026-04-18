@@ -1,0 +1,562 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Signiture Database Control</title>
+    <style>
+        :root {
+            --bg: #f6f7fb;
+            --card: #ffffff;
+            --text: #111111;
+            --muted: #666666;
+            --line: #d9d9d9;
+            --accent: #1b6ef3;
+            --danger: #c62828;
+            --ok: #1b7a39;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            padding: 24px;
+        }
+
+        .wrap {
+            max-width: 1100px;
+            margin: 0 auto;
+            display: grid;
+            gap: 16px;
+        }
+
+        .card {
+            background: var(--card);
+            border: 1px solid var(--line);
+            border-radius: 12px;
+            padding: 16px;
+        }
+
+        .title {
+            font-size: 24px;
+            margin-bottom: 8px;
+        }
+
+        .subtitle {
+            color: var(--muted);
+            margin-bottom: 12px;
+            font-size: 14px;
+        }
+
+        .stats {
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+            margin-top: 8px;
+        }
+
+        .stat {
+            border: 1px solid var(--line);
+            border-radius: 10px;
+            padding: 10px 12px;
+            min-width: 180px;
+        }
+
+        .stat .label {
+            color: var(--muted);
+            font-size: 12px;
+        }
+
+        .stat .value {
+            font-size: 22px;
+            margin-top: 4px;
+            font-weight: 600;
+        }
+
+        .actions {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        button, .file-label {
+            border: 1px solid var(--line);
+            background: #fff;
+            color: var(--text);
+            border-radius: 8px;
+            padding: 8px 12px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        button:hover, .file-label:hover {
+            border-color: #b6b6b6;
+        }
+
+        .primary {
+            background: var(--accent);
+            border-color: var(--accent);
+            color: #fff;
+        }
+
+        .danger {
+            background: var(--danger);
+            border-color: var(--danger);
+            color: #fff;
+        }
+
+        .status {
+            border-radius: 8px;
+            padding: 10px 12px;
+            background: #f1f2f6;
+            color: #222;
+            font-size: 14px;
+        }
+
+        .status.ok {
+            background: #e8f7ed;
+            color: var(--ok);
+        }
+
+        .status.error {
+            background: #fdeceb;
+            color: var(--danger);
+        }
+
+        .list {
+            display: grid;
+            gap: 10px;
+        }
+
+        .list-item {
+            border: 1px solid var(--line);
+            border-radius: 10px;
+            padding: 10px;
+            display: grid;
+            grid-template-columns: 1fr auto;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .meta {
+            display: grid;
+            gap: 6px;
+        }
+
+        .meta small {
+            color: var(--muted);
+            font-size: 12px;
+        }
+
+        .sig-preview {
+            width: 100%;
+            max-width: 280px;
+            max-height: 120px;
+            border: 1px solid var(--line);
+            border-radius: 6px;
+            background: #fff;
+            object-fit: contain;
+        }
+
+        .empty {
+            color: var(--muted);
+            font-size: 14px;
+            padding: 8px 0;
+        }
+
+        input[type="file"] {
+            display: none;
+        }
+
+        @media (max-width: 760px) {
+            body {
+                padding: 12px;
+            }
+
+            .list-item {
+                grid-template-columns: 1fr;
+            }
+
+            .sig-preview {
+                max-width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <main class="wrap">
+        <section class="card">
+            <h1 class="title">Signiture Database Control</h1>
+            <p class="subtitle">Manage IndexedDB data for submitted signatures from Index.html.</p>
+
+            <div class="stats">
+                <div class="stat">
+                    <div class="label">Database</div>
+                    <div class="value" id="dbName">MCD_Game_Club_DB</div>
+                </div>
+                <div class="stat">
+                    <div class="label">Store</div>
+                    <div class="value" id="storeName">signitures</div>
+                </div>
+                <div class="stat">
+                    <div class="label">Total records</div>
+                    <div class="value" id="recordCount">0</div>
+                </div>
+            </div>
+        </section>
+
+        <section class="card">
+            <div class="actions">
+                <button class="primary" id="refreshBtn">Refresh</button>
+                <button class="danger" id="clearAllBtn">Clear All Signitures</button>
+                <button id="exportBtn">Export JSON</button>
+                <label class="file-label" for="importInput">Import JSON</label>
+                <input id="importInput" type="file" accept="application/json" />
+                <button id="deleteDbBtn">Delete Whole Database</button>
+            </div>
+        </section>
+
+        <section class="card">
+            <div id="status" class="status">Ready.</div>
+        </section>
+
+        <section class="card">
+            <h2 style="font-size:18px; margin-bottom:10px;">Saved Signitures</h2>
+            <div id="list" class="list"></div>
+        </section>
+    </main>
+
+    <script>
+        const DB_NAME = "MCD_Game_Club_DB";
+        const DB_VERSION = 1;
+        const STORE_NAME = "signitures";
+
+        const countEl = document.getElementById("recordCount");
+        const listEl = document.getElementById("list");
+        const statusEl = document.getElementById("status");
+        const refreshBtn = document.getElementById("refreshBtn");
+        const clearAllBtn = document.getElementById("clearAllBtn");
+        const exportBtn = document.getElementById("exportBtn");
+        const importInput = document.getElementById("importInput");
+        const deleteDbBtn = document.getElementById("deleteDbBtn");
+
+        let dbPromise;
+
+        function setStatus(message, type) {
+            statusEl.textContent = message;
+            statusEl.className = "status";
+            if (type === "ok") statusEl.classList.add("ok");
+            if (type === "error") statusEl.classList.add("error");
+        }
+
+        function openDb() {
+            if (dbPromise) return dbPromise;
+
+            dbPromise = new Promise(function(resolve, reject) {
+                const request = indexedDB.open(DB_NAME, DB_VERSION);
+
+                request.onupgradeneeded = function(event) {
+                    const db = event.target.result;
+                    if (!db.objectStoreNames.contains(STORE_NAME)) {
+                        db.createObjectStore(STORE_NAME, { keyPath: "id", autoIncrement: true });
+                    }
+                };
+
+                request.onsuccess = function() {
+                    resolve(request.result);
+                };
+
+                request.onerror = function() {
+                    reject(request.error);
+                };
+            });
+
+            return dbPromise;
+        }
+
+        async function getAllRecords() {
+            const db = await openDb();
+            return new Promise(function(resolve, reject) {
+                const tx = db.transaction(STORE_NAME, "readonly");
+                const store = tx.objectStore(STORE_NAME);
+                const req = store.getAll();
+
+                req.onsuccess = function() {
+                    resolve(req.result || []);
+                };
+                req.onerror = function() {
+                    reject(req.error);
+                };
+            });
+        }
+
+        async function getCount() {
+            const db = await openDb();
+            return new Promise(function(resolve, reject) {
+                const tx = db.transaction(STORE_NAME, "readonly");
+                const store = tx.objectStore(STORE_NAME);
+                const req = store.count();
+
+                req.onsuccess = function() {
+                    resolve(req.result || 0);
+                };
+                req.onerror = function() {
+                    reject(req.error);
+                };
+            });
+        }
+
+        async function deleteRecord(id) {
+            const db = await openDb();
+            return new Promise(function(resolve, reject) {
+                const tx = db.transaction(STORE_NAME, "readwrite");
+                const store = tx.objectStore(STORE_NAME);
+                const req = store.delete(id);
+
+                req.onsuccess = function() {
+                    resolve();
+                };
+                req.onerror = function() {
+                    reject(req.error);
+                };
+            });
+        }
+
+        async function clearAll() {
+            const db = await openDb();
+            return new Promise(function(resolve, reject) {
+                const tx = db.transaction(STORE_NAME, "readwrite");
+                const store = tx.objectStore(STORE_NAME);
+                const req = store.clear();
+
+                req.onsuccess = function() {
+                    resolve();
+                };
+                req.onerror = function() {
+                    reject(req.error);
+                };
+            });
+        }
+
+        async function addRecord(record) {
+            const db = await openDb();
+            return new Promise(function(resolve, reject) {
+                const tx = db.transaction(STORE_NAME, "readwrite");
+                const store = tx.objectStore(STORE_NAME);
+                const req = store.add({
+                    imageDataUrl: record.imageDataUrl,
+                    createdAt: record.createdAt || new Date().toISOString()
+                });
+
+                req.onsuccess = function() {
+                    resolve();
+                };
+                req.onerror = function() {
+                    reject(req.error);
+                };
+            });
+        }
+
+        function formatDate(dateString) {
+            if (!dateString) return "No timestamp";
+            const date = new Date(dateString);
+            if (Number.isNaN(date.getTime())) return "Invalid timestamp";
+            return date.toLocaleString();
+        }
+
+        function renderList(records) {
+            listEl.innerHTML = "";
+
+            if (!records.length) {
+                const empty = document.createElement("div");
+                empty.className = "empty";
+                empty.textContent = "No signatures saved yet.";
+                listEl.appendChild(empty);
+                return;
+            }
+
+            records
+                .sort(function(a, b) {
+                    const aTime = new Date(a.createdAt || 0).getTime();
+                    const bTime = new Date(b.createdAt || 0).getTime();
+                    return bTime - aTime;
+                })
+                .forEach(function(record) {
+                    const item = document.createElement("div");
+                    item.className = "list-item";
+
+                    const left = document.createElement("div");
+                    left.className = "meta";
+
+                    const heading = document.createElement("strong");
+                    heading.textContent = "Record #" + record.id;
+
+                    const stamp = document.createElement("small");
+                    stamp.textContent = "Submitted: " + formatDate(record.createdAt);
+
+                    const preview = document.createElement("img");
+                    preview.className = "sig-preview";
+                    preview.alt = "Signature preview";
+                    preview.src = record.imageDataUrl || "";
+
+                    const right = document.createElement("div");
+                    const delBtn = document.createElement("button");
+                    delBtn.className = "danger";
+                    delBtn.textContent = "Delete";
+                    delBtn.addEventListener("click", async function() {
+                        const ok = confirm("Delete signature record #" + record.id + "?");
+                        if (!ok) return;
+
+                        try {
+                            await deleteRecord(record.id);
+                            await refreshAll();
+                            setStatus("Deleted record #" + record.id + ".", "ok");
+                        } catch (error) {
+                            console.error(error);
+                            setStatus("Failed to delete record #" + record.id + ".", "error");
+                        }
+                    });
+
+                    left.appendChild(heading);
+                    left.appendChild(stamp);
+                    left.appendChild(preview);
+                    right.appendChild(delBtn);
+
+                    item.appendChild(left);
+                    item.appendChild(right);
+                    listEl.appendChild(item);
+                });
+        }
+
+        function downloadTextFile(filename, content) {
+            const blob = new Blob([content], { type: "application/json" });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+
+        async function refreshAll() {
+            const [count, records] = await Promise.all([getCount(), getAllRecords()]);
+            countEl.textContent = String(count);
+            renderList(records);
+        }
+
+        refreshBtn.addEventListener("click", async function() {
+            try {
+                await refreshAll();
+                setStatus("Data refreshed.", "ok");
+            } catch (error) {
+                console.error(error);
+                setStatus("Failed to refresh data.", "error");
+            }
+        });
+
+        clearAllBtn.addEventListener("click", async function() {
+            const ok = confirm("Clear ALL signatures from the database?");
+            if (!ok) return;
+
+            try {
+                await clearAll();
+                await refreshAll();
+                setStatus("All signatures cleared.", "ok");
+            } catch (error) {
+                console.error(error);
+                setStatus("Failed to clear signatures.", "error");
+            }
+        });
+
+        exportBtn.addEventListener("click", async function() {
+            try {
+                const records = await getAllRecords();
+                const payload = {
+                    exportedAt: new Date().toISOString(),
+                    dbName: DB_NAME,
+                    storeName: STORE_NAME,
+                    count: records.length,
+                    records: records
+                };
+                downloadTextFile("signitures-export.json", JSON.stringify(payload, null, 2));
+                setStatus("Exported " + records.length + " records.", "ok");
+            } catch (error) {
+                console.error(error);
+                setStatus("Failed to export records.", "error");
+            }
+        });
+
+        importInput.addEventListener("change", async function(event) {
+            const file = event.target.files && event.target.files[0];
+            if (!file) return;
+
+            try {
+                const text = await file.text();
+                const parsed = JSON.parse(text);
+                const records = Array.isArray(parsed.records) ? parsed.records : [];
+
+                if (!records.length) {
+                    setStatus("No records found in import file.", "error");
+                    importInput.value = "";
+                    return;
+                }
+
+                for (const record of records) {
+                    if (typeof record.imageDataUrl === "string" && record.imageDataUrl.length > 0) {
+                        await addRecord(record);
+                    }
+                }
+
+                await refreshAll();
+                setStatus("Imported " + records.length + " records.", "ok");
+            } catch (error) {
+                console.error(error);
+                setStatus("Failed to import JSON file.", "error");
+            } finally {
+                importInput.value = "";
+            }
+        });
+
+        deleteDbBtn.addEventListener("click", function() {
+            const ok = confirm("Delete the WHOLE database? This removes all stores and records.");
+            if (!ok) return;
+
+            if (dbPromise) {
+                dbPromise.then(function(db) { db.close(); }).catch(function() {});
+                dbPromise = null;
+            }
+
+            const deleteRequest = indexedDB.deleteDatabase(DB_NAME);
+            deleteRequest.onsuccess = async function() {
+                setStatus("Database deleted.", "ok");
+                await refreshAll();
+            };
+            deleteRequest.onerror = function() {
+                setStatus("Failed to delete database.", "error");
+            };
+            deleteRequest.onblocked = function() {
+                setStatus("Database delete blocked. Close other tabs using this DB and try again.", "error");
+            };
+        });
+
+        (async function init() {
+            try {
+                await refreshAll();
+                setStatus("Loaded database controls.", "ok");
+            } catch (error) {
+                console.error(error);
+                setStatus("Could not open database.", "error");
+            }
+        })();
+    </script>
+</body>
+</html>
