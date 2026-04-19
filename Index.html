@@ -608,6 +608,7 @@
                 const signitureDeviceIdStorageKeyForGuard = 'mcd_game_club_signiture_device_id';
                 const signitureGuardRefreshIntervalMs = 3000;
                 let signitureGuardRefreshTimer = null;
+                let addSignitureButtonMode = 'add';
 
                 function getSignitureDeviceIdForGuard() {
                     let deviceId = localStorage.getItem(signitureDeviceIdStorageKeyForGuard);
@@ -620,12 +621,12 @@
                     return deviceId;
                 }
 
-                async function hasSignatureForCurrentDevice() {
+                async function getSignatureRecordForCurrentDevice() {
                     const deviceId = getSignitureDeviceIdForGuard();
                     const response = await fetch('/api/signatures/device/' + encodeURIComponent(deviceId));
 
                     if (response.status === 404) {
-                        return false;
+                        return null;
                     }
 
                     if (!response.ok) {
@@ -633,14 +634,29 @@
                     }
 
                     const payload = await response.json();
-                    return !!payload.exists;
+                    return payload && payload.record ? payload.record : null;
+                }
+
+                async function removeSignatureForCurrentDevice() {
+                    const deviceId = getSignitureDeviceIdForGuard();
+                    const response = await fetch('/api/signatures/device/' + encodeURIComponent(deviceId), {
+                        method: 'DELETE'
+                    });
+
+                    if (!response.ok) {
+                        throw new Error('Failed to remove signature: ' + response.status);
+                    }
+
+                    const payload = await response.json();
+                    return !!payload.removed;
                 }
 
                 async function refreshAddSignitureButtonState() {
                     try {
-                        const hasSignature = await hasSignatureForCurrentDevice();
-                        addSignitureButton.disabled = hasSignature;
-                        addSignitureButton.textContent = hasSignature ? 'Signature submitted' : 'Add your signiture';
+                        const signatureRecord = await getSignatureRecordForCurrentDevice();
+                        const hasSignature = !!signatureRecord;
+                        addSignitureButtonMode = hasSignature ? 'remove' : 'add';
+                        addSignitureButton.textContent = hasSignature ? 'Remove your signiture' : 'Add your signiture';
                     } catch (error) {
                         console.error('Unable to check signature guard.', error);
                     }
@@ -670,7 +686,19 @@
                 addSignitureButton.addEventListener('click', async function() {
                     await refreshAddSignitureButtonState();
 
-                    if (addSignitureButton.disabled) {
+                    if (addSignitureButtonMode === 'remove') {
+                        try {
+                            await removeSignatureForCurrentDevice();
+                            if (typeof window.refreshSignitureCounterFromDb === 'function') {
+                                await window.refreshSignitureCounterFromDb();
+                            }
+                            if (typeof window.refreshSignitureUiLive === 'function') {
+                                await window.refreshSignitureUiLive();
+                            }
+                            await refreshAddSignitureButtonState();
+                        } catch (error) {
+                            console.error('Unable to remove signiture.', error);
+                        }
                         return;
                     }
 

@@ -144,6 +144,27 @@ app.get('/api/signatures/device/:deviceId', async function(req, res) {
   }
 });
 
+app.delete('/api/signatures/device/:deviceId', async function(req, res) {
+  const deviceId = String(req.params.deviceId || '').trim();
+
+  if (!deviceId) {
+    return res.status(400).json({ error: 'deviceId is required' });
+  }
+
+  try {
+    const result = await db.execute(sql`
+      DELETE FROM signatures
+      WHERE device_id = ${deviceId}
+      RETURNING id
+    `);
+    const rows = Array.isArray(result) ? result : (result.rows || []);
+    res.json({ removed: rows.length > 0 });
+  } catch (error) {
+    console.error('Failed to delete signature by device:', error);
+    res.status(500).json({ error: 'Failed to delete signature by device' });
+  }
+});
+
 app.post('/api/signatures', async function(req, res) {
   const imageDataUrl = req.body && req.body.imageDataUrl;
   const deviceId = req.body && req.body.deviceId ? String(req.body.deviceId).trim() : '';
