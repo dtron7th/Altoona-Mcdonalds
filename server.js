@@ -21,6 +21,20 @@ async function initDb() {
   `);
 
   await db.execute(sql`
+    DELETE FROM signatures newer
+    USING signatures older
+    WHERE newer.device_id IS NOT NULL
+      AND older.device_id = newer.device_id
+      AND older.id < newer.id
+  `);
+
+  await db.execute(sql`
+    CREATE UNIQUE INDEX IF NOT EXISTS signatures_device_id_unique_idx
+    ON signatures (device_id)
+    WHERE device_id IS NOT NULL
+  `);
+
+  await db.execute(sql`
     CREATE TABLE IF NOT EXISTS supports (
       id BIGSERIAL PRIMARY KEY,
       device_id TEXT NOT NULL UNIQUE,
@@ -103,13 +117,36 @@ app.get('/api/signatures/count', async function(_req, res) {
 
 app.post('/api/signatures', async function(req, res) {
   const imageDataUrl = req.body && req.body.imageDataUrl;
-  const deviceId = req.body && req.body.deviceId ? String(req.body.deviceId) : null;
+  const deviceId = req.body && req.body.deviceId ? String(req.body.deviceId).trim() : '';
 
   if (!imageDataUrl || typeof imageDataUrl !== 'string') {
     return res.status(400).json({ error: 'imageDataUrl is required' });
   }
 
+  if (!deviceId) {
+    return res.status(400).json({ error: 'deviceId is required' });
+  }
+
   try {
+    const existingResult = await db.execute(sql`
+      SELECT
+        id,
+        created_at AS "createdAt"
+      FROM signatures
+      WHERE device_id = ${deviceId}
+      LIMIT 1
+    `);
+    const existingRows = Array.isArray(existingResult) ? existingResult : (existingResult.rows || []);
+
+    if (existingRows.length) {
+      return res.status(200).json({
+        added: false,
+        message: 'This device already submitted a signature.',
+        id: existingRows[0].id,
+        createdAt: existingRows[0].createdAt
+      });
+    }
+
     const result = await db.execute(sql`
       INSERT INTO signatures (image_data_url, device_id)
       VALUES (${imageDataUrl}, ${deviceId})
@@ -118,10 +155,18 @@ app.post('/api/signatures', async function(req, res) {
     const rows = Array.isArray(result) ? result : (result.rows || []);
 
     res.status(201).json({
+      added: true,
       id: rows[0].id,
       createdAt: rows[0].createdAt
     });
   } catch (error) {
+    if (error && error.code === '23505') {
+      return res.status(200).json({
+        added: false,
+        message: 'This device already submitted a signature.'
+      });
+    }
+
     console.error('Failed to save signature:', error);
     res.status(500).json({ error: 'Failed to save signature' });
   }

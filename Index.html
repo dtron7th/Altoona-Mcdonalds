@@ -873,7 +873,16 @@
                         const signitureImageData = signitureCanvas.toDataURL('image/png');
 
                         try {
-                            await addSignitureToDb(signitureImageData);
+                            const result = await addSignitureToDb(signitureImageData);
+
+                            if (result && result.added === false) {
+                                alert(result.message || 'This device already submitted a signature.');
+                                closeSignitureWindow();
+                                clearSignitureCanvas();
+                                await refreshSignitureCounterFromDb();
+                                return;
+                            }
+
                             await refreshSignitureCounterFromDb();
                         } catch (error) {
                             console.error('Unable to save signiture.', error);
