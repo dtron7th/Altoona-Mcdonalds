@@ -463,8 +463,52 @@
                         });
                     }
 
-                    refreshSupportCount();
-                    renderSupportTrackingList();
+                    const supportLiveRefreshIntervalMs = 3000;
+                    let supportLiveRefreshTimer = null;
+
+                    async function refreshSupportUiLive() {
+                        await refreshSupportCount();
+
+                        if (statsViewSupportsWindow && statsViewSupportsWindow.style.display === 'flex') {
+                            await renderSupportTrackingList();
+                        }
+                    }
+
+                    function startSupportLiveRefresh() {
+                        if (supportLiveRefreshTimer) {
+                            return;
+                        }
+
+                        supportLiveRefreshTimer = setInterval(function() {
+                            refreshSupportUiLive().catch(function(error) {
+                                console.error('Support live refresh failed.', error);
+                            });
+                        }, supportLiveRefreshIntervalMs);
+                    }
+
+                    function stopSupportLiveRefresh() {
+                        if (!supportLiveRefreshTimer) {
+                            return;
+                        }
+
+                        clearInterval(supportLiveRefreshTimer);
+                        supportLiveRefreshTimer = null;
+                    }
+
+                    document.addEventListener('visibilitychange', function() {
+                        if (document.hidden) {
+                            stopSupportLiveRefresh();
+                            return;
+                        }
+
+                        refreshSupportUiLive().catch(function(error) {
+                            console.error('Support live refresh failed.', error);
+                        });
+                        startSupportLiveRefresh();
+                    });
+
+                    refreshSupportUiLive();
+                    startSupportLiveRefresh();
                 });
             </script>
         </div>
@@ -614,6 +658,8 @@
 
                     let isDrawing = false;
                     let hasSignitureStroke = false;
+                    const signitureLiveRefreshIntervalMs = 3000;
+                    let signitureLiveRefreshTimer = null;
 
                     const signitureDeviceIdStorageKey = 'mcd_game_club_signiture_device_id';
 
@@ -665,6 +711,10 @@
                         return response.count || 0;
                     }
 
+                    async function getAllSignitures() {
+                        return signitureApiRequest('/api/signatures');
+                    }
+
                     async function refreshSignitureCounterFromDb() {
                         try {
                             const count = await getSignitureCountFromDb();
@@ -676,6 +726,54 @@
                             console.error('Unable to load signitures from database.', error);
                         }
                     }
+
+                    async function refreshSignitureUiLive() {
+                        await refreshSignitureCounterFromDb();
+
+                        const signaturesWindow = document.querySelector('.View_Signitures_Window');
+                        const statsSignituresWindow = document.querySelector('.Stats_View_Signitures_Window');
+
+                        if (signaturesWindow && signaturesWindow.style.display === 'flex' && typeof window.renderSignaturesColumn === 'function') {
+                            await window.renderSignaturesColumn();
+                        }
+
+                        if (statsSignituresWindow && statsSignituresWindow.style.display === 'flex' && typeof window.renderStatsSignaturesColumn === 'function') {
+                            await window.renderStatsSignaturesColumn();
+                        }
+                    }
+
+                    function startSignitureLiveRefresh() {
+                        if (signitureLiveRefreshTimer) {
+                            return;
+                        }
+
+                        signitureLiveRefreshTimer = setInterval(function() {
+                            refreshSignitureUiLive().catch(function(error) {
+                                console.error('Signiture live refresh failed.', error);
+                            });
+                        }, signitureLiveRefreshIntervalMs);
+                    }
+
+                    function stopSignitureLiveRefresh() {
+                        if (!signitureLiveRefreshTimer) {
+                            return;
+                        }
+
+                        clearInterval(signitureLiveRefreshTimer);
+                        signitureLiveRefreshTimer = null;
+                    }
+
+                    document.addEventListener('visibilitychange', function() {
+                        if (document.hidden) {
+                            stopSignitureLiveRefresh();
+                            return;
+                        }
+
+                        refreshSignitureUiLive().catch(function(error) {
+                            console.error('Signiture live refresh failed.', error);
+                        });
+                        startSignitureLiveRefresh();
+                    });
 
                     function closeSignitureWindow() {
                         signitureWindow.style.display = 'none';
@@ -773,6 +871,8 @@
                     });
 
                     refreshSignitureCounterFromDb();
+                    refreshSignitureUiLive();
+                    startSignitureLiveRefresh();
                 </script>
             </div>
 
