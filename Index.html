@@ -589,14 +589,104 @@
                     font-size: 12px;
                     cursor: pointer;
                 }
+
+                .Bottom_Buttons button:disabled {
+                    color: rgb(120, 120, 120);
+                    background: rgb(235, 235, 235);
+                    border-color: rgb(180, 180, 180);
+                    cursor: not-allowed;
+                }
             </style>
             <script aria-label="Bottom_Buttons_Script">
-                document.getElementById('Add_Signiture_Button').addEventListener('click', function() {
+                const addSignitureButton = document.getElementById('Add_Signiture_Button');
+                const signitureDeviceIdStorageKeyForGuard = 'mcd_game_club_signiture_device_id';
+                const signitureGuardRefreshIntervalMs = 3000;
+                let signitureGuardRefreshTimer = null;
+
+                function getSignitureDeviceIdForGuard() {
+                    let deviceId = localStorage.getItem(signitureDeviceIdStorageKeyForGuard);
+                    if (deviceId) {
+                        return deviceId;
+                    }
+
+                    deviceId = 'device-' + Date.now() + '-' + Math.random().toString(36).slice(2, 10);
+                    localStorage.setItem(signitureDeviceIdStorageKeyForGuard, deviceId);
+                    return deviceId;
+                }
+
+                async function hasSignatureForCurrentDevice() {
+                    const deviceId = getSignitureDeviceIdForGuard();
+                    const response = await fetch('/api/signatures/device/' + encodeURIComponent(deviceId));
+
+                    if (response.status === 404) {
+                        return false;
+                    }
+
+                    if (!response.ok) {
+                        throw new Error('Failed to check signature status: ' + response.status);
+                    }
+
+                    const payload = await response.json();
+                    return !!payload.exists;
+                }
+
+                async function refreshAddSignitureButtonState() {
+                    try {
+                        const hasSignature = await hasSignatureForCurrentDevice();
+                        addSignitureButton.disabled = hasSignature;
+                        addSignitureButton.textContent = hasSignature ? 'Signature already submitted' : 'Add your signiture';
+                    } catch (error) {
+                        console.error('Unable to check signature guard.', error);
+                    }
+                }
+
+                window.refreshAddSignitureButtonState = refreshAddSignitureButtonState;
+
+                function startSignitureGuardLiveRefresh() {
+                    if (signitureGuardRefreshTimer) {
+                        return;
+                    }
+
+                    signitureGuardRefreshTimer = setInterval(function() {
+                        refreshAddSignitureButtonState();
+                    }, signitureGuardRefreshIntervalMs);
+                }
+
+                function stopSignitureGuardLiveRefresh() {
+                    if (!signitureGuardRefreshTimer) {
+                        return;
+                    }
+
+                    clearInterval(signitureGuardRefreshTimer);
+                    signitureGuardRefreshTimer = null;
+                }
+
+                addSignitureButton.addEventListener('click', async function() {
+                    await refreshAddSignitureButtonState();
+
+                    if (addSignitureButton.disabled) {
+                        return;
+                    }
+
                     document.querySelector('.Signiture_Window').style.display = 'flex';
                     document.querySelector('.Windows').style.display = 'flex';
                 });
+
+                document.addEventListener('visibilitychange', function() {
+                    if (document.hidden) {
+                        stopSignitureGuardLiveRefresh();
+                        return;
+                    }
+
+                    refreshAddSignitureButtonState();
+                    startSignitureGuardLiveRefresh();
+                });
+
+                refreshAddSignitureButtonState();
+                startSignitureGuardLiveRefresh();
             </script>
         </div>
+        
         <!-- --Book_Mark - (Main_Page Styles)--------------------- -->
         <style aria-label="Main_Page_Style">
             .Main_Page {
@@ -880,10 +970,16 @@
                                 closeSignitureWindow();
                                 clearSignitureCanvas();
                                 await refreshSignitureCounterFromDb();
+                                if (typeof window.refreshAddSignitureButtonState === 'function') {
+                                    await window.refreshAddSignitureButtonState();
+                                }
                                 return;
                             }
 
                             await refreshSignitureCounterFromDb();
+                            if (typeof window.refreshAddSignitureButtonState === 'function') {
+                                await window.refreshAddSignitureButtonState();
+                            }
                         } catch (error) {
                             console.error('Unable to save signiture.', error);
                             return;

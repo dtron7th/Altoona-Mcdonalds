@@ -115,6 +115,35 @@ app.get('/api/signatures/count', async function(_req, res) {
   }
 });
 
+app.get('/api/signatures/device/:deviceId', async function(req, res) {
+  const deviceId = String(req.params.deviceId || '').trim();
+
+  if (!deviceId) {
+    return res.status(400).json({ error: 'deviceId is required' });
+  }
+
+  try {
+    const result = await db.execute(sql`
+      SELECT
+        id,
+        created_at AS "createdAt"
+      FROM signatures
+      WHERE device_id = ${deviceId}
+      LIMIT 1
+    `);
+    const rows = Array.isArray(result) ? result : (result.rows || []);
+
+    if (!rows.length) {
+      return res.status(404).json({ exists: false });
+    }
+
+    res.json({ exists: true, record: rows[0] });
+  } catch (error) {
+    console.error('Failed to lookup signature by device:', error);
+    res.status(500).json({ error: 'Failed to lookup signature by device' });
+  }
+});
+
 app.post('/api/signatures', async function(req, res) {
   const imageDataUrl = req.body && req.body.imageDataUrl;
   const deviceId = req.body && req.body.deviceId ? String(req.body.deviceId).trim() : '';
