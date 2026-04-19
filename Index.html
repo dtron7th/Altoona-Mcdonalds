@@ -276,6 +276,14 @@
                     font-size: 12px;
                     cursor: pointer;
                 }
+
+                .Support_Buttons button:disabled,
+                .Bottom_Buttons #Add_Signiture_Button:disabled {
+                    color: rgb(120, 120, 120);
+                    background: rgb(235, 235, 235);
+                    border-color: rgb(180, 180, 180);
+                    cursor: not-allowed;
+                }
             </style>
             <script aria-label="Support_Buttons_Script">
                 document.addEventListener('DOMContentLoaded', function() {
@@ -501,9 +509,7 @@
                             return;
                         }
 
-                        refreshSupportUiLive().catch(function(error) {
-                            console.error('Support live refresh failed.', error);
-                        });
+                        refreshSupportUiLive();
                         startSupportLiveRefresh();
                     });
 
