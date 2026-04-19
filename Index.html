@@ -533,6 +533,24 @@
                     line-height: 30px;
                     font-size: 12px;
                 }
+
+                @media (max-width: 768px), (max-height: 780px) {
+                    .Stats {
+                        top: auto;
+                        bottom: 65px;
+                        width: calc(100% - 20px);
+                        flex-direction: row;
+                        justify-content: space-between;
+                        gap: 6px;
+                    }
+
+                    .Stats button {
+                        flex: 1;
+                        min-width: 0;
+                        font-size: 11px;
+                        line-height: 18px;
+                    }
+                }
             </style>
 
             <!-- --Book_Mark - (Stats Script)--------------------- -->
