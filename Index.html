@@ -70,7 +70,7 @@
     </style>
 
     <!-- --Book_Mark - (Dev Settings Panel)--------------------- -->
-    <!--<div class="Dev_Settings">
+    <div class="Dev_Settings">
         <div class="Buttons">
             <button id="Dev_Settings_Lables">LAB</button>
             <button id="Dev_Settings_Border">BOR</button>
@@ -179,7 +179,7 @@
                 });
             });
         </script>
-    </div>-->
+    </div>
 </head>
 <body>
     <!-- --Book_Mark - (Main_Page Container)--------------------- -->
@@ -214,6 +214,32 @@
                 });
             </script>
         </div>
+
+        <!-- --Book_Mark - (Donate Goal)--------------------- -->
+
+        <div class="Donate_Goal">
+            <span id="Donate_Percentage">100% : $10,000/10,000</span>
+            <style aria-label="Donate_Goal_Style">
+                .Donate_Goal {
+                    position: absolute;
+                    top: 10px;
+                    right: 10px;
+                    display: flex;
+                    flex-direction: column;
+                    align-items: center;
+                    justify-content: center;
+                    gap: 10px;
+                }
+
+                #Donate_Percentage {
+                    font-size: 12px;
+                }
+            </style>
+            <script aria-label="Donate_Goal_Script">
+
+            </script>
+        </div>
+
         <!-- --Book_Mark - (Logo Section)--------------------- -->
         <div class="Logo">
             <p class="Title">MCD Game Club</p>
@@ -718,6 +744,12 @@
 
                 refreshAddSignitureButtonState();
                 startSignitureGuardLiveRefresh();
+
+                document.getElementById('Donate_Button').addEventListener('click', function() {
+                    document.querySelector('.Donate_Window').style.display = 'flex';
+                    document.querySelector('.Windows').style.display = 'flex';
+                });
+                
             </script>
         </div>
         
@@ -1429,6 +1461,130 @@
                         bottom: 10px;
                     }
                 </style>
+            </div>
+
+            <div class="Donate_Window">
+                <span id="Donate_Window_Finance_Percentage">0% : 0/$10,000</span>
+                <button id="Donate_Window_Close_Button">[ Close ]</button>
+                <div class="Donate_Window_Title">
+                    <p id="Donate_Window_Main_Title">Donate to Patton AI</p>
+                    <p id="Donate_Window_Sub_Title">Where critical decisions change the battlefield</p>
+                    <style>
+                        .Donate_Window_Title {
+                            position: absolute;
+                            top: 60px;
+                            width: 250px;
+                            display: flex;
+                            flex-direction: column;
+                            align-items: center;
+                            gap: 10px;
+                        }
+
+                        #Donate_Window_Main_Title {
+                            font-size: 16px;
+                            text-align: center;
+                        }
+
+                        #Donate_Window_Sub_Title {
+                            font-size: 12px;
+                            text-align: center;
+                        }
+
+
+                    </style>
+                    
+                </div>
+                <span id="Donate_Window_Finance_Count">$0</span>
+                <div class="Donate_Window_Bills">
+                    <button>$1</button>
+                    <button>$5</button>
+                    <button>$10</button>
+                    <button>$20</button>
+                    <button>$50</button>
+                    <button>$100</button>
+
+                    <style aria-label="Donate_Window_Bills_Style">
+                        .Donate_Window_Bills {
+                            position: absolute;
+                            top: 220px;
+                            display: flex;
+                            flex-direction: row;
+                            justify-content: center;
+                            align-items: center;
+                            gap: 10px;
+                        }
+
+                        .Donate_Window_Bills button {
+                            width: 50px;
+                            height: 30px;
+                            border: 1px solid rgb(0, 0, 0);
+                            background-color: rgb(255, 255, 255);
+                            cursor: pointer;
+                        }
+                    </style>
+                    <script aria-label="Donate_Window_Bills_Script">
+
+                    </script>
+                </div>
+
+                <div class="Game_Info">
+                    <h2>Game Info</h2>
+                    <style>
+                        .Game_Info {
+                            position: absolute;
+                            top: 300px;
+                            width: calc(100% - 60px);
+                            height: 200px;
+                            background-color: rgb(255, 255, 255);
+                            border: 1px solid rgb(0, 0, 0);
+                            display: flex;
+                            justify-content: center;
+                            align-items: center;
+                        }
+                    </style>
+                    <script aria-label="Game_Info_Script">
+
+                    </script>
+                </div>
+                <style aria-label="Donate_Window_Style">
+                    .Donate_Window {
+                        position: relative;
+                        width: 400px;
+                        height: 550px;
+                        background-color: rgb(255, 255, 255);
+                        border: 1px solid rgb(0, 0, 0);
+                        display: flex;
+                        justify-content: center;
+                        align-items: center;
+                        display: none;
+                    }
+
+                    #Donate_Window_Close_Button {
+                        position: absolute;
+                        top: 10px;
+                        right: 10px;
+                    }
+
+                    #Donate_Window_Finance_Percentage {
+                        position: absolute;
+                        top: 10px;
+                        left: 10px;
+                        font-size: 12px;
+                    }
+
+                    #Donate_Window_Finance_Count {
+                        position: absolute;
+                        top: 140px;
+                        font-size: 20px;
+                    }
+
+                </style>
+                <script aria-label="Donate_Window_Script">
+                    document.getElementById('Donate_Window_Close_Button').addEventListener('click', function() {
+                        document.querySelector('.Donate_Window').style.display = 'none';
+                        document.querySelector('.Windows').style.display = 'none';
+                    });
+                </script>
             </div>
 
             <!-- --Book_Mark - (Windows Overlay & Modal Styles)--------------------- -->
