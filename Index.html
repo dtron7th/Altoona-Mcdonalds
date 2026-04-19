@@ -640,7 +640,7 @@
                     try {
                         const hasSignature = await hasSignatureForCurrentDevice();
                         addSignitureButton.disabled = hasSignature;
-                        addSignitureButton.textContent = hasSignature ? 'Signature already submitted' : 'Add your signiture';
+                        addSignitureButton.textContent = hasSignature ? 'Signature submitted' : 'Add your signiture';
                     } catch (error) {
                         console.error('Unable to check signature guard.', error);
                     }
