@@ -2,38 +2,29 @@ require('dotenv').config();
 
 const express = require('express');
 const path = require('path');
-const { Pool } = require('pg');
+const { sql } = require('drizzle-orm');
+const { db } = require('./db/runtime-client');
 
 const app = express();
 const PORT = Number(process.env.PORT || 3000);
 const ADMIN_API_KEY = process.env.ADMIN_API_KEY || '';
 
-if (!process.env.DATABASE_URL) {
-  console.error('Missing DATABASE_URL environment variable.');
-  process.exit(1);
-}
-
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-  ssl: process.env.DATABASE_URL.includes('localhost') ? false : { rejectUnauthorized: false }
-});
-
 async function initDb() {
-  await pool.query(`
+  await db.execute(sql`
     CREATE TABLE IF NOT EXISTS signatures (
       id BIGSERIAL PRIMARY KEY,
       image_data_url TEXT NOT NULL,
       device_id TEXT,
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-    );
+    )
   `);
 
-  await pool.query(`
+  await db.execute(sql`
     CREATE TABLE IF NOT EXISTS supports (
       id BIGSERIAL PRIMARY KEY,
       device_id TEXT NOT NULL UNIQUE,
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-    );
+    )
   `);
 }
 
@@ -46,10 +37,17 @@ app.get('/api/health', function(_req, res) {
 
 app.get('/api/signatures', async function(_req, res) {
   try {
-    const result = await pool.query(
-      'SELECT id, image_data_url AS "imageDataUrl", device_id AS "deviceId", created_at AS "createdAt" FROM signatures ORDER BY id DESC'
-    );
-    res.json(result.rows);
+    const result = await db.execute(sql`
+      SELECT
+        id,
+        image_data_url AS "imageDataUrl",
+        device_id AS "deviceId",
+        created_at AS "createdAt"
+      FROM signatures
+      ORDER BY id DESC
+    `);
+    const rows = Array.isArray(result) ? result : (result.rows || []);
+    res.json(rows);
   } catch (error) {
     console.error('Failed to load signatures:', error);
     res.status(500).json({ error: 'Failed to load signatures' });
@@ -64,8 +62,9 @@ app.delete('/api/signatures/:id', async function(req, res) {
   }
 
   try {
-    const result = await pool.query('DELETE FROM signatures WHERE id = $1 RETURNING id', [id]);
-    res.json({ removed: result.rowCount > 0 });
+    const result = await db.execute(sql`DELETE FROM signatures WHERE id = ${id} RETURNING id`);
+    const rows = Array.isArray(result) ? result : (result.rows || []);
+    res.json({ removed: rows.length > 0 });
   } catch (error) {
     console.error('Failed to delete signature:', error);
     res.status(500).json({ error: 'Failed to delete signature' });
@@ -74,7 +73,7 @@ app.delete('/api/signatures/:id', async function(req, res) {
 
 app.delete('/api/signatures', async function(_req, res) {
   try {
-    await pool.query('DELETE FROM signatures');
+    await db.execute(sql`DELETE FROM signatures`);
     res.json({ cleared: true });
   } catch (error) {
     console.error('Failed to clear signatures:', error);
@@ -84,8 +83,10 @@ app.delete('/api/signatures', async function(_req, res) {
 
 app.get('/api/signatures/count', async function(_req, res) {
   try {
-    const result = await pool.query('SELECT COUNT(*)::INT AS count FROM signatures');
-    res.json({ count: result.rows[0].count || 0 });
+    const result = await db.execute(sql`SELECT COUNT(*)::INT AS count FROM signatures`);
+    const row = Array.isArray(result) ? result[0] : (result.rows && result.rows[0]);
+    const count = row && row.count ? Number(row.count) : 0;
+    res.json({ count });
   } catch (error) {
     console.error('Failed to count signatures:', error);
     res.status(500).json({ error: 'Failed to count signatures' });
@@ -101,14 +102,16 @@ app.post('/api/signatures', async function(req, res) {
   }
 
   try {
-    const result = await pool.query(
-      'INSERT INTO signatures (image_data_url, device_id) VALUES ($1, $2) RETURNING id, created_at AS "createdAt"',
-      [imageDataUrl, deviceId]
-    );
+    const result = await db.execute(sql`
+      INSERT INTO signatures (image_data_url, device_id)
+      VALUES (${imageDataUrl}, ${deviceId})
+      RETURNING id, created_at AS "createdAt"
+    `);
+    const rows = Array.isArray(result) ? result : (result.rows || []);
 
     res.status(201).json({
-      id: result.rows[0].id,
-      createdAt: result.rows[0].createdAt
+      id: rows[0].id,
+      createdAt: rows[0].createdAt
     });
   } catch (error) {
     console.error('Failed to save signature:', error);
@@ -118,10 +121,16 @@ app.post('/api/signatures', async function(req, res) {
 
 app.get('/api/supports', async function(_req, res) {
   try {
-    const result = await pool.query(
-      'SELECT id, device_id AS "deviceId", created_at AS "createdAt" FROM supports ORDER BY id DESC'
-    );
-    res.json(result.rows);
+    const result = await db.execute(sql`
+      SELECT
+        id,
+        device_id AS "deviceId",
+        created_at AS "createdAt"
+      FROM supports
+      ORDER BY id DESC
+    `);
+    const rows = Array.isArray(result) ? result : (result.rows || []);
+    res.json(rows);
   } catch (error) {
     console.error('Failed to load supports:', error);
     res.status(500).json({ error: 'Failed to load supports' });
@@ -130,8 +139,10 @@ app.get('/api/supports', async function(_req, res) {
 
 app.get('/api/supports/count', async function(_req, res) {
   try {
-    const result = await pool.query('SELECT COUNT(*)::INT AS count FROM supports');
-    res.json({ count: result.rows[0].count || 0 });
+    const result = await db.execute(sql`SELECT COUNT(*)::INT AS count FROM supports`);
+    const row = Array.isArray(result) ? result[0] : (result.rows && result.rows[0]);
+    const count = row && row.count ? Number(row.count) : 0;
+    res.json({ count });
   } catch (error) {
     console.error('Failed to count supports:', error);
     res.status(500).json({ error: 'Failed to count supports' });
@@ -146,16 +157,22 @@ app.get('/api/supports/:deviceId', async function(req, res) {
   }
 
   try {
-    const result = await pool.query(
-      'SELECT id, device_id AS "deviceId", created_at AS "createdAt" FROM supports WHERE device_id = $1 LIMIT 1',
-      [deviceId]
-    );
+    const result = await db.execute(sql`
+      SELECT
+        id,
+        device_id AS "deviceId",
+        created_at AS "createdAt"
+      FROM supports
+      WHERE device_id = ${deviceId}
+      LIMIT 1
+    `);
+    const rows = Array.isArray(result) ? result : (result.rows || []);
 
-    if (!result.rowCount) {
+    if (!rows.length) {
       return res.status(404).json({ exists: false });
     }
 
-    res.json({ exists: true, record: result.rows[0] });
+    res.json({ exists: true, record: rows[0] });
   } catch (error) {
     console.error('Failed to lookup support by device:', error);
     res.status(500).json({ error: 'Failed to lookup support by device' });
@@ -170,21 +187,29 @@ app.post('/api/supports', async function(req, res) {
   }
 
   try {
-    const existing = await pool.query(
-      'SELECT id, device_id AS "deviceId", created_at AS "createdAt" FROM supports WHERE device_id = $1 LIMIT 1',
-      [deviceId]
-    );
+    const existingResult = await db.execute(sql`
+      SELECT
+        id,
+        device_id AS "deviceId",
+        created_at AS "createdAt"
+      FROM supports
+      WHERE device_id = ${deviceId}
+      LIMIT 1
+    `);
+    const existingRows = Array.isArray(existingResult) ? existingResult : (existingResult.rows || []);
 
-    if (existing.rowCount) {
-      return res.status(200).json({ added: false, record: existing.rows[0] });
+    if (existingRows.length) {
+      return res.status(200).json({ added: false, record: existingRows[0] });
     }
 
-    const inserted = await pool.query(
-      'INSERT INTO supports (device_id) VALUES ($1) RETURNING id, device_id AS "deviceId", created_at AS "createdAt"',
-      [deviceId]
-    );
+    const insertedResult = await db.execute(sql`
+      INSERT INTO supports (device_id)
+      VALUES (${deviceId})
+      RETURNING id, device_id AS "deviceId", created_at AS "createdAt"
+    `);
+    const insertedRows = Array.isArray(insertedResult) ? insertedResult : (insertedResult.rows || []);
 
-    res.status(201).json({ added: true, record: inserted.rows[0] });
+    res.status(201).json({ added: true, record: insertedRows[0] });
   } catch (error) {
     console.error('Failed to add support:', error);
     res.status(500).json({ error: 'Failed to add support' });
@@ -199,8 +224,9 @@ app.delete('/api/supports/:deviceId', async function(req, res) {
   }
 
   try {
-    const result = await pool.query('DELETE FROM supports WHERE device_id = $1 RETURNING id', [deviceId]);
-    res.json({ removed: result.rowCount > 0 });
+    const result = await db.execute(sql`DELETE FROM supports WHERE device_id = ${deviceId} RETURNING id`);
+    const rows = Array.isArray(result) ? result : (result.rows || []);
+    res.json({ removed: rows.length > 0 });
   } catch (error) {
     console.error('Failed to remove support:', error);
     res.status(500).json({ error: 'Failed to remove support' });
@@ -219,13 +245,10 @@ app.delete('/api/database', async function(_req, res) {
   }
 
   try {
-    await pool.query('BEGIN');
-    await pool.query('DELETE FROM supports');
-    await pool.query('DELETE FROM signatures');
-    await pool.query('COMMIT');
+    await db.execute(sql`DELETE FROM supports`);
+    await db.execute(sql`DELETE FROM signatures`);
     res.json({ reset: true });
   } catch (error) {
-    await pool.query('ROLLBACK').catch(function() {});
     console.error('Failed to reset database:', error);
     res.status(500).json({ error: 'Failed to reset database' });
   }

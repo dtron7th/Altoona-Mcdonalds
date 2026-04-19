@@ -5,11 +5,20 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "dev": "node server.js"
+    "dev": "node server.js",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "netlify dev:exec drizzle-kit migrate",
+    "db:studio": "netlify dev:exec drizzle-kit studio"
   },
   "dependencies": {
+    "@netlify/neon": "^0.1.2",
     "dotenv": "^16.4.7",
+    "drizzle-orm": "^0.45.2",
     "express": "^4.21.2",
     "pg": "^8.13.1"
+  },
+  "devDependencies": {
+    "@types/pg": "^8.15.2",
+    "drizzle-kit": "^0.31.10"
   }
 }
