@@ -43,6 +43,26 @@
             font-style: normal;
         }
 
+        ::-webkit-scrollbar {
+            width: 5px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #000000;
+            
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #000000;
+        }
+
+
         body {
             width: 100dvw;
             height: 100dvh;
@@ -233,8 +253,8 @@
         </div>
         <!-- --Book_Mark - (Support Buttons)--------------------- -->
         <div class="Support_Buttons">
-            <button>Support</button>
-            <button>Un Support</button>
+            <button id="Support_Button">Support</button>
+            <button id="Un_Support_Button">Un Support</button>
             <style aria-label="Support_Buttons_Style">
                 .Support_Buttons {
                     position: absolute;
@@ -258,14 +278,269 @@
                 }
             </style>
             <script aria-label="Support_Buttons_Script">
-                
+                document.addEventListener('DOMContentLoaded', function() {
+                    const supportButton = document.getElementById('Support_Button');
+                    const unSupportButton = document.getElementById('Un_Support_Button');
+                    const statsInSupport = document.getElementById('Stats_In_Support');
+                    const statsViewSupportsWindow = document.querySelector('.Stats_View_Supports_Window');
+                    const statsDatabaseSupportsList = document.querySelector('.Stats_Database_Supports_List');
+                    const statsViewSupportsWindowCloseButton = document.getElementById('Stats_View_Supports_Window_Close_Button');
+
+                    const supportDbConfig = {
+                        name: 'MCD_Game_Club_Support_DB',
+                        version: 1,
+                        storeName: 'supports'
+                    };
+
+                    const supportDeviceIdStorageKey = 'mcd_game_club_support_device_id';
+
+                    function getSupportDeviceId() {
+                        let deviceId = localStorage.getItem(supportDeviceIdStorageKey);
+                        if (deviceId) {
+                            return deviceId;
+                        }
+
+                        deviceId = 'device-' + Date.now() + '-' + Math.random().toString(36).slice(2, 10);
+                        localStorage.setItem(supportDeviceIdStorageKey, deviceId);
+                        return deviceId;
+                    }
+
+                    const supportDeviceId = getSupportDeviceId();
+
+                    let supportDbPromise;
+
+                    function openSupportDb() {
+                        if (supportDbPromise) {
+                            return supportDbPromise;
+                        }
+
+                        supportDbPromise = new Promise(function(resolve, reject) {
+                            const request = indexedDB.open(supportDbConfig.name, supportDbConfig.version);
+
+                            request.onupgradeneeded = function(event) {
+                                const db = event.target.result;
+                                if (!db.objectStoreNames.contains(supportDbConfig.storeName)) {
+                                    db.createObjectStore(supportDbConfig.storeName, {
+                                        keyPath: 'id',
+                                        autoIncrement: true
+                                    });
+                                }
+                            };
+
+                            request.onsuccess = function() {
+                                resolve(request.result);
+                            };
+
+                            request.onerror = function() {
+                                reject(request.error);
+                            };
+                        });
+
+                        return supportDbPromise;
+                    }
+
+                    async function getSupportRecordForDevice() {
+                        const records = await getAllSupports();
+                        return records.find(function(record) {
+                            return record.deviceId === supportDeviceId;
+                        }) || null;
+                    }
+
+                    async function addSupport() {
+                        const existingRecord = await getSupportRecordForDevice();
+                        if (existingRecord) {
+                            return false;
+                        }
+
+                        const db = await openSupportDb();
+
+                        return new Promise(function(resolve, reject) {
+                            const transaction = db.transaction(supportDbConfig.storeName, 'readwrite');
+                            const store = transaction.objectStore(supportDbConfig.storeName);
+                            const request = store.add({
+                                deviceId: supportDeviceId,
+                                createdAt: new Date().toISOString()
+                            });
+
+                            request.onsuccess = function() {
+                                resolve(true);
+                            };
+
+                            request.onerror = function() {
+                                reject(request.error);
+                            };
+                        });
+                    }
+
+                    async function removeSupport() {
+                        const existingRecord = await getSupportRecordForDevice();
+                        if (!existingRecord) {
+                            return false;
+                        }
+
+                        const db = await openSupportDb();
+
+                        return new Promise(function(resolve, reject) {
+                            const transaction = db.transaction(supportDbConfig.storeName, 'readwrite');
+                            const store = transaction.objectStore(supportDbConfig.storeName);
+                            const deleteRequest = store.delete(existingRecord.id);
+
+                            deleteRequest.onsuccess = function() {
+                                resolve(true);
+                            };
+
+                            deleteRequest.onerror = function() {
+                                reject(deleteRequest.error);
+                            };
+                        });
+                    }
+
+                    async function getSupportCount() {
+                        const db = await openSupportDb();
+
+                        return new Promise(function(resolve, reject) {
+                            const transaction = db.transaction(supportDbConfig.storeName, 'readonly');
+                            const store = transaction.objectStore(supportDbConfig.storeName);
+                            const request = store.count();
+
+                            request.onsuccess = function() {
+                                resolve(request.result || 0);
+                            };
+
+                            request.onerror = function() {
+                                reject(request.error);
+                            };
+                        });
+                    }
+
+                    async function getAllSupports() {
+                        const db = await openSupportDb();
+
+                        return new Promise(function(resolve, reject) {
+                            const transaction = db.transaction(supportDbConfig.storeName, 'readonly');
+                            const store = transaction.objectStore(supportDbConfig.storeName);
+                            const request = store.getAll();
+
+                            request.onsuccess = function() {
+                                resolve(request.result || []);
+                            };
+
+                            request.onerror = function() {
+                                reject(request.error);
+                            };
+                        });
+                    }
+
+                    async function renderSupportTrackingList() {
+                        if (!statsDatabaseSupportsList) {
+                            return;
+                        }
+
+                        try {
+                            const records = await getAllSupports();
+                            statsDatabaseSupportsList.innerHTML = '';
+
+                            if (!records.length) {
+                                statsDatabaseSupportsList.innerHTML = '<div style="color: #666; font-size: 12px;">No supports yet</div>';
+                                return;
+                            }
+
+                            const wrapper = document.createElement('div');
+                            wrapper.style.display = 'flex';
+                            wrapper.style.flexDirection = 'column';
+                            wrapper.style.gap = '8px';
+                            wrapper.style.width = '200px';
+
+                            records
+                                .slice()
+                                .reverse()
+                                .forEach(function(record, index) {
+                                    const row = document.createElement('div');
+                                    
+                                    row.style.padding = '6px 8px';
+                                    row.style.fontSize = '12px';
+                                    row.style.display = 'flex';
+                                    row.style.justifyContent = 'space-between';
+                                    row.style.gap = '8px';
+
+                                    const label = document.createElement('span');
+                                    label.textContent = 'Support #' + (records.length - index);
+
+                                    const timestamp = document.createElement('span');
+                                    timestamp.textContent = new Date(record.createdAt).toLocaleString();
+
+                                    row.appendChild(label);
+                                    row.appendChild(timestamp);
+                                    wrapper.appendChild(row);
+                                });
+
+                            statsDatabaseSupportsList.appendChild(wrapper);
+                        } catch (error) {
+                            console.error('Unable to load support tracking list.', error);
+                            statsDatabaseSupportsList.innerHTML = '<div style="color: red; font-size: 12px;">Error loading supports</div>';
+                        }
+                    }
+
+                    async function refreshSupportCount() {
+                        try {
+                            const count = await getSupportCount();
+                            const hasDeviceSupport = !!(await getSupportRecordForDevice());
+                            statsInSupport.dataset.count = String(count);
+                            statsInSupport.innerHTML = 'In support<br>' + count;
+                            supportButton.disabled = hasDeviceSupport;
+                            unSupportButton.disabled = !hasDeviceSupport;
+                        } catch (error) {
+                            console.error('Unable to load support count.', error);
+                        }
+                    }
+
+                    supportButton.addEventListener('click', async function() {
+                        try {
+                            await addSupport();
+                            await refreshSupportCount();
+                            await renderSupportTrackingList();
+                        } catch (error) {
+                            console.error('Unable to add support.', error);
+                        }
+                    });
+
+                    unSupportButton.addEventListener('click', async function() {
+                        try {
+                            await removeSupport();
+                            await refreshSupportCount();
+                            await renderSupportTrackingList();
+                        } catch (error) {
+                            console.error('Unable to remove support.', error);
+                        }
+                    });
+
+                    statsInSupport.addEventListener('click', async function() {
+                        if (statsViewSupportsWindow) {
+                            statsViewSupportsWindow.style.display = 'flex';
+                        }
+                        document.querySelector('.Windows').style.display = 'flex';
+                        await renderSupportTrackingList();
+                    });
+
+                    if (statsViewSupportsWindowCloseButton) {
+                        statsViewSupportsWindowCloseButton.addEventListener('click', function() {
+                            if (statsViewSupportsWindow) {
+                                statsViewSupportsWindow.style.display = 'none';
+                            }
+                            document.querySelector('.Windows').style.display = 'none';
+                        });
+                    }
+
+                    refreshSupportCount();
+                    renderSupportTrackingList();
+                });
             </script>
         </div>
         <!-- --Book_Mark - (Stats Display)--------------------- -->
         <div class="Stats">
-            <span id="Funds">MCDG Fund Plan<br>$0.00</span>
-            <span id="Signitures">Signitures<br>0</span>
-            <span id="In_Support">In support<br>0</span>
+            <button id="Stats_Funds">MCDG Fund Plan<br>$0.00</button>
+            <button id="Stats_Signitures">Signitures<br>0</button>
+            <button id="Stats_In_Support">In support<br>0</button>
             <style aria-label="Stats_Style">
                 .Stats {
                     position: absolute;
@@ -277,14 +552,23 @@
                     gap: 50px;
                 }
                 
-                .Stats span {
+                .Stats button {
                     text-align: center;
                     line-height: 30px;
                     font-size: 12px;
                 }
             </style>
+
+            <!-- --Book_Mark - (Stats Script)--------------------- -->
+
+
             <script aria-label="Stats_Script">
-                // TODO: Add stats logic here
+                
+            document.getElementById('Stats_Signitures').addEventListener('click', function() {
+                document.querySelector('.Windows').style.display = 'flex';
+                document.querySelector('.Stats_View_Signitures_Window').style.display = 'flex';
+            });
+              
             </script>
         </div>
         <!-- --Book_Mark - (Bottom Action Buttons)--------------------- -->
@@ -393,7 +677,8 @@
 
                     const signitureSubmitButton = document.querySelector('.Signiture_Submit_Button');
                     const signitureClearButton = document.querySelector('.Signiture_Clear_Button');
-                    const signitureCounter = document.querySelector('.Stats #Signitures');
+                    const signitureCounter = document.querySelector('.Stats #Stats_Signitures');
+                    const Stats_Signitures = document.getElementById('Stats_Signitures');
 
                     let isDrawing = false;
                     let hasSignitureStroke = false;
@@ -412,7 +697,7 @@
                         }
 
                         signitureDbPromise = new Promise(function(resolve, reject) {
-                            const request = indexedDB.open(signitureDbConfig.name, signitureDbConfig.version);
+                            const request = indexedDB.open(signitureDbConfig.name);
 
                             request.onupgradeneeded = function(event) {
                                 const db = event.target.result;
@@ -480,6 +765,8 @@
                             const count = await getSignitureCountFromDb();
                             signitureCounter.dataset.count = String(count);
                             signitureCounter.innerHTML = 'Signitures<br>' + count;
+                            Stats_Signitures.dataset.count = String(count);
+                            Stats_Signitures.innerHTML = 'Signitures<br>' + count;
                         } catch (error) {
                             console.error('Unable to load signitures from database.', error);
                         }
@@ -703,7 +990,7 @@
                                     width: calc(100% - 20px);
                                     height: calc(100% - 50px);
                                     background-color: rgb(255, 255, 255);
-                                    border: 1px solid rgb(0, 0, 0);
+                                    
                                     display: flex;
                                     flex-direction: column;
                                     justify-content: flex-start;
@@ -721,12 +1008,49 @@
                             <script aria-label="Database_Signitures_Script">
                                 const signaturesContainer = document.querySelector('.Database_Signitures');
                                 const signaturesList = document.querySelector('.Database_Signitures_List');
+                                const signatureListDbConfig = {
+                                    name: 'MCD_Game_Club_DB',
+                                    version: 1,
+                                    storeName: 'signitures'
+                                };
+
+                                let signatureListDbPromise;
+
+                                function openSignatureListDb() {
+                                    if (signatureListDbPromise) {
+                                        return signatureListDbPromise;
+                                    }
+
+                                    signatureListDbPromise = new Promise(function(resolve, reject) {
+                                        const request = indexedDB.open(signatureListDbConfig.name);
+
+                                        request.onupgradeneeded = function(event) {
+                                            const db = event.target.result;
+                                            if (!db.objectStoreNames.contains(signatureListDbConfig.storeName)) {
+                                                db.createObjectStore(signatureListDbConfig.storeName, {
+                                                    keyPath: 'id',
+                                                    autoIncrement: true
+                                                });
+                                            }
+                                        };
+
+                                        request.onsuccess = function() {
+                                            resolve(request.result);
+                                        };
+
+                                        request.onerror = function() {
+                                            reject(request.error);
+                                        };
+                                    });
+
+                                    return signatureListDbPromise;
+                                }
 
                                 async function getAllSignatureRecords() {
-                                    const db = await openSignitureDb();
+                                    const db = await openSignatureListDb();
                                     return new Promise(function(resolve, reject) {
-                                        const transaction = db.transaction(signitureDbConfig.storeName, 'readonly');
-                                        const store = transaction.objectStore(signitureDbConfig.storeName);
+                                        const transaction = db.transaction(signatureListDbConfig.storeName, 'readonly');
+                                        const store = transaction.objectStore(signatureListDbConfig.storeName);
                                         const request = store.getAll();
 
                                         request.onsuccess = function() {
@@ -760,9 +1084,9 @@
                                             img.src = record.imageDataUrl;
                                             img.alt = 'Signature #' + record.id;
                                             img.style.width = '100%';
-                                            img.style.maxHeight = '80px';
+                                            img.style.maxHeight = '50px';
 
-                                            img.style.border = '1px solid #ddd';
+                                            
                                             
                                             img.style.objectFit = 'contain';
                                             img.style.backgroundColor = '#fff';
@@ -831,6 +1155,213 @@
 
                     </script>
                 </div>
+            </div>
+
+            <div class="Stats_View_Signitures_Window">
+                <div class="Stats_Database_Signitures">
+                    <div class="Stats_Database_Signitures_List">
+                        
+                    </div>
+
+                    <style aria-label="Stats_Database_Signitures_List_Style">
+                        .Stats_Database_Signitures {
+                            position: absolute;
+                            top: 10px;
+                            width: calc(100% - 20px);
+                            height: calc(100% - 50px);
+                            background-color: rgb(255, 255, 255);
+                            
+                            display: flex;
+                            flex-direction: column;
+                            justify-content: flex-start;
+                            align-items: stretch;
+                            overflow: hidden;
+                            overflow-y: scroll;
+                        }
+
+                        .Stats_Database_Signitures_List {
+                            width: 100%;
+                            display: flex;
+                            flex-direction: column;
+                        }
+                    </style>
+                    <script aria-label="Stats_Database_Signitures_Script">
+                        const statsSignaturesContainer = document.querySelector('.Stats_Database_Signitures');
+                        const statsSignaturesList = document.querySelector('.Stats_Database_Signitures_List');
+
+                        const statsSignatureDbConfig = {
+                            name: 'MCD_Game_Club_DB',
+                            version: 1,
+                            storeName: 'signitures'
+                        };
+
+                        let statsSignatureDbPromise;
+
+                        function openStatsSignatureDb() {
+                            if (statsSignatureDbPromise) {
+                                return statsSignatureDbPromise;
+                            }
+
+                            statsSignatureDbPromise = new Promise(function(resolve, reject) {
+                                const request = indexedDB.open(statsSignatureDbConfig.name);
+
+                                request.onupgradeneeded = function(event) {
+                                    const db = event.target.result;
+                                    if (!db.objectStoreNames.contains(statsSignatureDbConfig.storeName)) {
+                                        db.createObjectStore(statsSignatureDbConfig.storeName, {
+                                            keyPath: 'id',
+                                            autoIncrement: true
+                                        });
+                                    }
+                                };
+
+                                request.onsuccess = function() {
+                                    resolve(request.result);
+                                };
+
+                                request.onerror = function() {
+                                    reject(request.error);
+                                };
+                            });
+
+                            return statsSignatureDbPromise;
+                        }
+
+                        async function getStatsSignatureRecords() {
+                            const db = await openStatsSignatureDb();
+                            return new Promise(function(resolve, reject) {
+                                const transaction = db.transaction(statsSignatureDbConfig.storeName, 'readonly');
+                                const store = transaction.objectStore(statsSignatureDbConfig.storeName);
+                                const request = store.getAll();
+
+                                request.onsuccess = function() {
+                                    resolve(request.result || []);
+                                };
+
+                                request.onerror = function() {
+                                    reject(request.error);
+                                };
+                            });
+                        }
+
+                        async function renderStatsSignaturesColumn() {
+                            try {
+                                const records = await getStatsSignatureRecords();
+                                statsSignaturesList.innerHTML = '';
+
+                                if (!records.length) {
+                                    statsSignaturesList.innerHTML = '<div style="color: #666; font-size: 12px;">No signatures</div>';
+                                    return;
+                                }
+
+                                const wrapper = document.createElement('div');
+                                wrapper.style.display = 'flex';
+                                wrapper.style.flexDirection = 'column';
+                                wrapper.style.gap = '10px';
+                                wrapper.style.width = '100%';
+
+                                records.forEach(function(record) {
+                                    const img = document.createElement('img');
+                                    img.src = record.imageDataUrl;
+                                    img.alt = 'Signature #' + record.id;
+                                    img.style.width = '100%';
+                                    img.style.maxHeight = '50px';
+                                    img.style.objectFit = 'contain';
+                                    img.style.backgroundColor = '#fff';
+
+                                    wrapper.appendChild(img);
+                                });
+
+                                statsSignaturesList.appendChild(wrapper);
+                            } catch (error) {
+                                console.error('Failed to load signatures.', error);
+                                statsSignaturesList.innerHTML = '<div style="color: red; font-size: 12px;">Error loading signatures</div>';
+                            }
+                        }
+
+                        document.getElementById('Stats_Signitures').addEventListener('click', async function() {
+                            document.querySelector('.Stats_View_Signitures_Window').style.display = 'flex';
+                            document.querySelector('.Windows').style.display = 'flex';
+                            await renderStatsSignaturesColumn();
+                        });
+                    </script>
+                </div>
+
+                <button id="Stats_View_Signitures_Window_Close_Button">[ Close ]</button>
+
+                <style aria-label="Stats_View_Signitures_Window_Style">
+                    .Stats_View_Signitures_Window {
+                        position: relative;
+                        width: 250px;
+                        height: 550px;
+                        background-color: rgb(255, 255, 255);
+                        border: 1px solid rgb(0, 0, 0);
+                        display: flex;
+                        justify-content: center;
+                        align-items: center;
+                        display: none;
+                    }
+                    
+                    #Stats_View_Signitures_Window_Close_Button {
+                        position: absolute;
+                        bottom: 10px;
+                    }
+                </style>
+                <script aria-label="Stats_View_Signitures_Window_Script">
+                    document.getElementById('Stats_View_Signitures_Window_Close_Button').addEventListener('click', function() {
+                        document.querySelector('.Stats_View_Signitures_Window').style.display = 'none';
+                        document.querySelector('.Windows').style.display = 'none';
+                    });
+                </script>
+            </div>
+
+            <div class="Stats_View_Supports_Window">
+                <div class="Stats_Database_Supports">
+                    <div class="Stats_Database_Supports_List"></div>
+
+                    <style aria-label="Stats_Database_Supports_Style">
+                        .Stats_Database_Supports {
+                            position: absolute;
+                            top: 10px;
+                            width: calc(100% - 20px);
+                            height: calc(100% - 50px);
+                            background-color: rgb(255, 255, 255);
+                            display: flex;
+                            flex-direction: column;
+                            justify-content: flex-start;
+                            align-items: stretch;
+                            overflow: hidden;
+                            overflow-y: scroll;
+                        }
+
+                        .Stats_Database_Supports_List {
+                            width: 100%;
+                            display: flex;
+                            flex-direction: column;
+                        }
+                    </style>
+                </div>
+
+                <button id="Stats_View_Supports_Window_Close_Button">[ Close ]</button>
+
+                <style aria-label="Stats_View_Supports_Window_Style">
+                    .Stats_View_Supports_Window {
+                        position: relative;
+                        width: 250px;
+                        height: 550px;
+                        background-color: rgb(255, 255, 255);
+                        border: 1px solid rgb(0, 0, 0);
+                        display: flex;
+                        justify-content: center;
+                        align-items: center;
+                        display: none;
+                    }
+
+                    #Stats_View_Supports_Window_Close_Button {
+                        position: absolute;
+                        bottom: 10px;
+                    }
+                </style>
             </div>
 
             <!-- --Book_Mark - (Windows Overlay & Modal Styles)--------------------- -->
