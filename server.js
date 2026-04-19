@@ -8,6 +8,7 @@ const { db } = require('./db/runtime-client');
 const app = express();
 const PORT = Number(process.env.PORT || 3000);
 const ADMIN_API_KEY = process.env.ADMIN_API_KEY || '';
+let initDbPromise = null;
 
 async function initDb() {
   await db.execute(sql`
@@ -26,6 +27,13 @@ async function initDb() {
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     )
   `);
+}
+
+function ensureDbInitialized() {
+  if (!initDbPromise) {
+    initDbPromise = initDb();
+  }
+  return initDbPromise;
 }
 
 app.use(express.json({ limit: '10mb' }));
@@ -254,13 +262,20 @@ app.delete('/api/database', async function(_req, res) {
   }
 });
 
-initDb()
-  .then(function() {
-    app.listen(PORT, function() {
-      console.log('Server listening on http://localhost:' + PORT);
+if (require.main === module) {
+  ensureDbInitialized()
+    .then(function() {
+      app.listen(PORT, function() {
+        console.log('Server listening on http://localhost:' + PORT);
+      });
+    })
+    .catch(function(error) {
+      console.error('Database init failed:', error);
+      process.exit(1);
     });
-  })
-  .catch(function(error) {
-    console.error('Database init failed:', error);
-    process.exit(1);
-  });
+}
+
+module.exports = {
+  app,
+  ensureDbInitialized
+};
