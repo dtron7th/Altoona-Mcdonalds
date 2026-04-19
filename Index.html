@@ -286,12 +286,6 @@
                     const statsDatabaseSupportsList = document.querySelector('.Stats_Database_Supports_List');
                     const statsViewSupportsWindowCloseButton = document.getElementById('Stats_View_Supports_Window_Close_Button');
 
-                    const supportDbConfig = {
-                        name: 'MCD_Game_Club_Support_DB',
-                        version: 1,
-                        storeName: 'supports'
-                    };
-
                     const supportDeviceIdStorageKey = 'mcd_game_club_support_device_id';
 
                     function getSupportDeviceId() {
@@ -307,128 +301,66 @@
 
                     const supportDeviceId = getSupportDeviceId();
 
-                    let supportDbPromise;
+                    async function apiRequest(path, options) {
+                        const requestOptions = options || {};
+                        const headers = requestOptions.headers || {};
 
-                    function openSupportDb() {
-                        if (supportDbPromise) {
-                            return supportDbPromise;
-                        }
-
-                        supportDbPromise = new Promise(function(resolve, reject) {
-                            const request = indexedDB.open(supportDbConfig.name, supportDbConfig.version);
-
-                            request.onupgradeneeded = function(event) {
-                                const db = event.target.result;
-                                if (!db.objectStoreNames.contains(supportDbConfig.storeName)) {
-                                    db.createObjectStore(supportDbConfig.storeName, {
-                                        keyPath: 'id',
-                                        autoIncrement: true
-                                    });
-                                }
-                            };
-
-                            request.onsuccess = function() {
-                                resolve(request.result);
-                            };
-
-                            request.onerror = function() {
-                                reject(request.error);
-                            };
+                        const response = await fetch(path, {
+                            method: requestOptions.method || 'GET',
+                            headers: Object.assign({
+                                'Content-Type': 'application/json'
+                            }, headers),
+                            body: requestOptions.body
                         });
 
-                        return supportDbPromise;
+                        if (!response.ok) {
+                            const errorText = await response.text();
+                            const error = new Error(errorText || ('Request failed with status ' + response.status));
+                            error.status = response.status;
+                            throw error;
+                        }
+
+                        return response.json();
                     }
 
                     async function getSupportRecordForDevice() {
-                        const records = await getAllSupports();
-                        return records.find(function(record) {
-                            return record.deviceId === supportDeviceId;
-                        }) || null;
+                        try {
+                            const response = await apiRequest('/api/supports/' + encodeURIComponent(supportDeviceId));
+                            return response.record || null;
+                        } catch (error) {
+                            if (error && error.status === 404) {
+                                return null;
+                            }
+                            throw error;
+                        }
                     }
 
                     async function addSupport() {
-                        const existingRecord = await getSupportRecordForDevice();
-                        if (existingRecord) {
-                            return false;
-                        }
-
-                        const db = await openSupportDb();
-
-                        return new Promise(function(resolve, reject) {
-                            const transaction = db.transaction(supportDbConfig.storeName, 'readwrite');
-                            const store = transaction.objectStore(supportDbConfig.storeName);
-                            const request = store.add({
-                                deviceId: supportDeviceId,
-                                createdAt: new Date().toISOString()
-                            });
-
-                            request.onsuccess = function() {
-                                resolve(true);
-                            };
-
-                            request.onerror = function() {
-                                reject(request.error);
-                            };
+                        const response = await apiRequest('/api/supports', {
+                            method: 'POST',
+                            body: JSON.stringify({
+                                deviceId: supportDeviceId
+                            })
                         });
+
+                        return !!response.added;
                     }
 
                     async function removeSupport() {
-                        const existingRecord = await getSupportRecordForDevice();
-                        if (!existingRecord) {
-                            return false;
-                        }
-
-                        const db = await openSupportDb();
-
-                        return new Promise(function(resolve, reject) {
-                            const transaction = db.transaction(supportDbConfig.storeName, 'readwrite');
-                            const store = transaction.objectStore(supportDbConfig.storeName);
-                            const deleteRequest = store.delete(existingRecord.id);
-
-                            deleteRequest.onsuccess = function() {
-                                resolve(true);
-                            };
-
-                            deleteRequest.onerror = function() {
-                                reject(deleteRequest.error);
-                            };
+                        const response = await apiRequest('/api/supports/' + encodeURIComponent(supportDeviceId), {
+                            method: 'DELETE'
                         });
+
+                        return !!response.removed;
                     }
 
                     async function getSupportCount() {
-                        const db = await openSupportDb();
-
-                        return new Promise(function(resolve, reject) {
-                            const transaction = db.transaction(supportDbConfig.storeName, 'readonly');
-                            const store = transaction.objectStore(supportDbConfig.storeName);
-                            const request = store.count();
-
-                            request.onsuccess = function() {
-                                resolve(request.result || 0);
-                            };
-
-                            request.onerror = function() {
-                                reject(request.error);
-                            };
-                        });
+                        const response = await apiRequest('/api/supports/count');
+                        return response.count || 0;
                     }
 
                     async function getAllSupports() {
-                        const db = await openSupportDb();
-
-                        return new Promise(function(resolve, reject) {
-                            const transaction = db.transaction(supportDbConfig.storeName, 'readonly');
-                            const store = transaction.objectStore(supportDbConfig.storeName);
-                            const request = store.getAll();
-
-                            request.onsuccess = function() {
-                                resolve(request.result || []);
-                            };
-
-                            request.onerror = function() {
-                                reject(request.error);
-                            };
-                        });
+                        return apiRequest('/api/supports');
                     }
 
                     async function renderSupportTrackingList() {
@@ -683,81 +615,54 @@
                     let isDrawing = false;
                     let hasSignitureStroke = false;
 
-                    const signitureDbConfig = {
-                        name: 'MCD_Game_Club_DB',
-                        version: 1,
-                        storeName: 'signitures'
-                    };
+                    const signitureDeviceIdStorageKey = 'mcd_game_club_signiture_device_id';
 
-                    let signitureDbPromise;
-
-                    function openSignitureDb() {
-                        if (signitureDbPromise) {
-                            return signitureDbPromise;
+                    function getSignitureDeviceId() {
+                        let deviceId = localStorage.getItem(signitureDeviceIdStorageKey);
+                        if (deviceId) {
+                            return deviceId;
                         }
 
-                        signitureDbPromise = new Promise(function(resolve, reject) {
-                            const request = indexedDB.open(signitureDbConfig.name);
+                        deviceId = 'device-' + Date.now() + '-' + Math.random().toString(36).slice(2, 10);
+                        localStorage.setItem(signitureDeviceIdStorageKey, deviceId);
+                        return deviceId;
+                    }
 
-                            request.onupgradeneeded = function(event) {
-                                const db = event.target.result;
-                                if (!db.objectStoreNames.contains(signitureDbConfig.storeName)) {
-                                    db.createObjectStore(signitureDbConfig.storeName, {
-                                        keyPath: 'id',
-                                        autoIncrement: true
-                                    });
-                                }
-                            };
+                    const signitureDeviceId = getSignitureDeviceId();
 
-                            request.onsuccess = function() {
-                                resolve(request.result);
-                            };
+                    async function signitureApiRequest(path, options) {
+                        const requestOptions = options || {};
+                        const headers = requestOptions.headers || {};
 
-                            request.onerror = function() {
-                                reject(request.error);
-                            };
+                        const response = await fetch(path, {
+                            method: requestOptions.method || 'GET',
+                            headers: Object.assign({
+                                'Content-Type': 'application/json'
+                            }, headers),
+                            body: requestOptions.body
                         });
 
-                        return signitureDbPromise;
+                        if (!response.ok) {
+                            const errorText = await response.text();
+                            throw new Error(errorText || ('Request failed with status ' + response.status));
+                        }
+
+                        return response.json();
                     }
 
                     async function addSignitureToDb(imageDataUrl) {
-                        const db = await openSignitureDb();
-
-                        return new Promise(function(resolve, reject) {
-                            const transaction = db.transaction(signitureDbConfig.storeName, 'readwrite');
-                            const store = transaction.objectStore(signitureDbConfig.storeName);
-                            const request = store.add({
+                        return signitureApiRequest('/api/signatures', {
+                            method: 'POST',
+                            body: JSON.stringify({
                                 imageDataUrl: imageDataUrl,
-                                createdAt: new Date().toISOString()
-                            });
-
-                            request.onsuccess = function() {
-                                resolve();
-                            };
-
-                            request.onerror = function() {
-                                reject(request.error);
-                            };
+                                deviceId: signitureDeviceId
+                            })
                         });
                     }
 
                     async function getSignitureCountFromDb() {
-                        const db = await openSignitureDb();
-
-                        return new Promise(function(resolve, reject) {
-                            const transaction = db.transaction(signitureDbConfig.storeName, 'readonly');
-                            const store = transaction.objectStore(signitureDbConfig.storeName);
-                            const countRequest = store.count();
-
-                            countRequest.onsuccess = function() {
-                                resolve(countRequest.result || 0);
-                            };
-
-                            countRequest.onerror = function() {
-                                reject(countRequest.error);
-                            };
-                        });
+                        const response = await signitureApiRequest('/api/signatures/count');
+                        return response.count || 0;
                     }
 
                     async function refreshSignitureCounterFromDb() {
@@ -1008,59 +913,13 @@
                             <script aria-label="Database_Signitures_Script">
                                 const signaturesContainer = document.querySelector('.Database_Signitures');
                                 const signaturesList = document.querySelector('.Database_Signitures_List');
-                                const signatureListDbConfig = {
-                                    name: 'MCD_Game_Club_DB',
-                                    version: 1,
-                                    storeName: 'signitures'
-                                };
-
-                                let signatureListDbPromise;
-
-                                function openSignatureListDb() {
-                                    if (signatureListDbPromise) {
-                                        return signatureListDbPromise;
+                                async function getAllSignatureRecords() {
+                                    const response = await fetch('/api/signatures');
+                                    if (!response.ok) {
+                                        throw new Error('Request failed with status ' + response.status);
                                     }
 
-                                    signatureListDbPromise = new Promise(function(resolve, reject) {
-                                        const request = indexedDB.open(signatureListDbConfig.name);
-
-                                        request.onupgradeneeded = function(event) {
-                                            const db = event.target.result;
-                                            if (!db.objectStoreNames.contains(signatureListDbConfig.storeName)) {
-                                                db.createObjectStore(signatureListDbConfig.storeName, {
-                                                    keyPath: 'id',
-                                                    autoIncrement: true
-                                                });
-                                            }
-                                        };
-
-                                        request.onsuccess = function() {
-                                            resolve(request.result);
-                                        };
-
-                                        request.onerror = function() {
-                                            reject(request.error);
-                                        };
-                                    });
-
-                                    return signatureListDbPromise;
-                                }
-
-                                async function getAllSignatureRecords() {
-                                    const db = await openSignatureListDb();
-                                    return new Promise(function(resolve, reject) {
-                                        const transaction = db.transaction(signatureListDbConfig.storeName, 'readonly');
-                                        const store = transaction.objectStore(signatureListDbConfig.storeName);
-                                        const request = store.getAll();
-
-                                        request.onsuccess = function() {
-                                            resolve(request.result || []);
-                                        };
-
-                                        request.onerror = function() {
-                                            reject(request.error);
-                                        };
-                                    });
+                                    return response.json();
                                 }
 
                                 async function renderSignaturesColumn() {
@@ -1085,9 +944,6 @@
                                             img.alt = 'Signature #' + record.id;
                                             img.style.width = '100%';
                                             img.style.maxHeight = '50px';
-
-                                            
-                                            
                                             img.style.objectFit = 'contain';
                                             img.style.backgroundColor = '#fff';
 
@@ -1189,59 +1045,13 @@
                         const statsSignaturesContainer = document.querySelector('.Stats_Database_Signitures');
                         const statsSignaturesList = document.querySelector('.Stats_Database_Signitures_List');
 
-                        const statsSignatureDbConfig = {
-                            name: 'MCD_Game_Club_DB',
-                            version: 1,
-                            storeName: 'signitures'
-                        };
-
-                        let statsSignatureDbPromise;
-
-                        function openStatsSignatureDb() {
-                            if (statsSignatureDbPromise) {
-                                return statsSignatureDbPromise;
+                        async function getStatsSignatureRecords() {
+                            const response = await fetch('/api/signatures');
+                            if (!response.ok) {
+                                throw new Error('Request failed with status ' + response.status);
                             }
 
-                            statsSignatureDbPromise = new Promise(function(resolve, reject) {
-                                const request = indexedDB.open(statsSignatureDbConfig.name);
-
-                                request.onupgradeneeded = function(event) {
-                                    const db = event.target.result;
-                                    if (!db.objectStoreNames.contains(statsSignatureDbConfig.storeName)) {
-                                        db.createObjectStore(statsSignatureDbConfig.storeName, {
-                                            keyPath: 'id',
-                                            autoIncrement: true
-                                        });
-                                    }
-                                };
-
-                                request.onsuccess = function() {
-                                    resolve(request.result);
-                                };
-
-                                request.onerror = function() {
-                                    reject(request.error);
-                                };
-                            });
-
-                            return statsSignatureDbPromise;
-                        }
-
-                        async function getStatsSignatureRecords() {
-                            const db = await openStatsSignatureDb();
-                            return new Promise(function(resolve, reject) {
-                                const transaction = db.transaction(statsSignatureDbConfig.storeName, 'readonly');
-                                const store = transaction.objectStore(statsSignatureDbConfig.storeName);
-                                const request = store.getAll();
-
-                                request.onsuccess = function() {
-                                    resolve(request.result || []);
-                                };
-
-                                request.onerror = function() {
-                                    reject(request.error);
-                                };
-                            });
+                            return response.json();
                         }
 
                         async function renderStatsSignaturesColumn() {

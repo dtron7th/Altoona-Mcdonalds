@@ -175,6 +175,16 @@
             display: none;
         }
 
+        #adminKeyInput {
+            border: 1px solid var(--line);
+            background: #fff;
+            color: var(--text);
+            border-radius: 8px;
+            padding: 8px 12px;
+            font-size: 14px;
+            min-width: 220px;
+        }
+
         @media (max-width: 760px) {
             body {
                 padding: 12px;
@@ -194,16 +204,16 @@
     <main class="wrap">
         <section class="card">
             <h1 class="title">Signiture Database Control</h1>
-            <p class="subtitle">Manage IndexedDB data for submitted signatures from Index.html.</p>
+            <p class="subtitle">Manage shared cloud database data for submitted signatures from Index.html.</p>
 
             <div class="stats">
                 <div class="stat">
-                    <div class="label">Database</div>
-                    <div class="value" id="dbName">MCD_Game_Club_DB</div>
+                    <div class="label">API</div>
+                    <div class="value" id="dbName">/api/signatures</div>
                 </div>
                 <div class="stat">
-                    <div class="label">Store</div>
-                    <div class="value" id="storeName">signitures</div>
+                    <div class="label">Backend</div>
+                    <div class="value" id="storeName">PostgreSQL</div>
                 </div>
                 <div class="stat">
                     <div class="label">Total records</div>
@@ -219,7 +229,8 @@
                 <button id="exportBtn">Export JSON</button>
                 <label class="file-label" for="importInput">Import JSON</label>
                 <input id="importInput" type="file" accept="application/json" />
-                <button id="deleteDbBtn">Delete Whole Database</button>
+                <input id="adminKeyInput" type="password" placeholder="Admin key (for reset)" autocomplete="off" />
+                <button id="deleteDbBtn">Reset Whole Database</button>
             </div>
         </section>
 
@@ -234,8 +245,8 @@
     </main>
 
     <script>
-        const DB_NAME = "MCD_Game_Club_DB";
-        const DB_VERSION = 1;
+        const SIGNATURES_API_PATH = "/api/signatures";
+        const DB_NAME = "Cloud API";
         const STORE_NAME = "signitures";
 
         const countEl = document.getElementById("recordCount");
@@ -245,9 +256,8 @@
         const clearAllBtn = document.getElementById("clearAllBtn");
         const exportBtn = document.getElementById("exportBtn");
         const importInput = document.getElementById("importInput");
+        const adminKeyInput = document.getElementById("adminKeyInput");
         const deleteDbBtn = document.getElementById("deleteDbBtn");
-
-        let dbPromise;
 
         function setStatus(message, type) {
             statusEl.textContent = message;
@@ -256,111 +266,54 @@
             if (type === "error") statusEl.classList.add("error");
         }
 
-        function openDb() {
-            if (dbPromise) return dbPromise;
+        async function apiRequest(path, options) {
+            const requestOptions = options || {};
+            const headers = requestOptions.headers || {};
 
-            dbPromise = new Promise(function(resolve, reject) {
-                const request = indexedDB.open(DB_NAME, DB_VERSION);
-
-                request.onupgradeneeded = function(event) {
-                    const db = event.target.result;
-                    if (!db.objectStoreNames.contains(STORE_NAME)) {
-                        db.createObjectStore(STORE_NAME, { keyPath: "id", autoIncrement: true });
-                    }
-                };
-
-                request.onsuccess = function() {
-                    resolve(request.result);
-                };
-
-                request.onerror = function() {
-                    reject(request.error);
-                };
+            const response = await fetch(path, {
+                method: requestOptions.method || "GET",
+                headers: Object.assign({
+                    "Content-Type": "application/json"
+                }, headers),
+                body: requestOptions.body
             });
 
-            return dbPromise;
+            if (!response.ok) {
+                const errorText = await response.text();
+                throw new Error(errorText || ("Request failed with status " + response.status));
+            }
+
+            return response.json();
         }
 
         async function getAllRecords() {
-            const db = await openDb();
-            return new Promise(function(resolve, reject) {
-                const tx = db.transaction(STORE_NAME, "readonly");
-                const store = tx.objectStore(STORE_NAME);
-                const req = store.getAll();
-
-                req.onsuccess = function() {
-                    resolve(req.result || []);
-                };
-                req.onerror = function() {
-                    reject(req.error);
-                };
-            });
+            return apiRequest(SIGNATURES_API_PATH);
         }
 
         async function getCount() {
-            const db = await openDb();
-            return new Promise(function(resolve, reject) {
-                const tx = db.transaction(STORE_NAME, "readonly");
-                const store = tx.objectStore(STORE_NAME);
-                const req = store.count();
-
-                req.onsuccess = function() {
-                    resolve(req.result || 0);
-                };
-                req.onerror = function() {
-                    reject(req.error);
-                };
-            });
+            const response = await apiRequest("/api/signatures/count");
+            return response.count || 0;
         }
 
         async function deleteRecord(id) {
-            const db = await openDb();
-            return new Promise(function(resolve, reject) {
-                const tx = db.transaction(STORE_NAME, "readwrite");
-                const store = tx.objectStore(STORE_NAME);
-                const req = store.delete(id);
-
-                req.onsuccess = function() {
-                    resolve();
-                };
-                req.onerror = function() {
-                    reject(req.error);
-                };
+            return apiRequest("/api/signatures/" + encodeURIComponent(id), {
+                method: "DELETE"
             });
         }
 
         async function clearAll() {
-            const db = await openDb();
-            return new Promise(function(resolve, reject) {
-                const tx = db.transaction(STORE_NAME, "readwrite");
-                const store = tx.objectStore(STORE_NAME);
-                const req = store.clear();
-
-                req.onsuccess = function() {
-                    resolve();
-                };
-                req.onerror = function() {
-                    reject(req.error);
-                };
+            return apiRequest("/api/signatures", {
+                method: "DELETE"
             });
         }
 
         async function addRecord(record) {
-            const db = await openDb();
-            return new Promise(function(resolve, reject) {
-                const tx = db.transaction(STORE_NAME, "readwrite");
-                const store = tx.objectStore(STORE_NAME);
-                const req = store.add({
+            return apiRequest("/api/signatures", {
+                method: "POST",
+                body: JSON.stringify({
                     imageDataUrl: record.imageDataUrl,
-                    createdAt: record.createdAt || new Date().toISOString()
-                });
-
-                req.onsuccess = function() {
-                    resolve();
-                };
-                req.onerror = function() {
-                    reject(req.error);
-                };
+                    deviceId: record.deviceId || "import-tool"
+                })
             });
         }
 
@@ -482,7 +435,7 @@
                 const records = await getAllRecords();
                 const payload = {
                     exportedAt: new Date().toISOString(),
-                    dbName: DB_NAME,
+                    dbName: "Cloud API",
                     storeName: STORE_NAME,
                     count: records.length,
                     records: records
@@ -510,14 +463,16 @@
                     return;
                 }
 
+                let importedCount = 0;
                 for (const record of records) {
                     if (typeof record.imageDataUrl === "string" && record.imageDataUrl.length > 0) {
                         await addRecord(record);
+                        importedCount += 1;
                     }
                 }
 
                 await refreshAll();
-                setStatus("Imported " + records.length + " records.", "ok");
+                setStatus("Imported " + importedCount + " records.", "ok");
             } catch (error) {
                 console.error(error);
                 setStatus("Failed to import JSON file.", "error");
@@ -527,34 +482,38 @@
         });
 
         deleteDbBtn.addEventListener("click", function() {
-            const ok = confirm("Delete the WHOLE database? This removes all stores and records.");
+            const ok = confirm("Reset the WHOLE cloud database? This removes all supports and signatures.");
             if (!ok) return;
 
-            if (dbPromise) {
-                dbPromise.then(function(db) { db.close(); }).catch(function() {});
-                dbPromise = null;
+            const adminKey = String(adminKeyInput.value || "").trim();
+            if (!adminKey) {
+                setStatus("Enter admin key before reset.", "error");
+                return;
             }
 
-            const deleteRequest = indexedDB.deleteDatabase(DB_NAME);
-            deleteRequest.onsuccess = async function() {
-                setStatus("Database deleted.", "ok");
-                await refreshAll();
-            };
-            deleteRequest.onerror = function() {
-                setStatus("Failed to delete database.", "error");
-            };
-            deleteRequest.onblocked = function() {
-                setStatus("Database delete blocked. Close other tabs using this DB and try again.", "error");
-            };
+            apiRequest("/api/database", {
+                method: "DELETE",
+                headers: {
+                    "x-admin-key": adminKey
+                }
+            })
+                .then(async function() {
+                    setStatus("Cloud database reset.", "ok");
+                    await refreshAll();
+                })
+                .catch(function(error) {
+                    console.error(error);
+                    setStatus("Failed to reset cloud database.", "error");
+                });
         });
 
         (async function init() {
             try {
                 await refreshAll();
-                setStatus("Loaded database controls.", "ok");
+                setStatus("Loaded cloud database controls.", "ok");
             } catch (error) {
                 console.error(error);
-                setStatus("Could not open database.", "error");
+                setStatus("Could not reach cloud database API.", "error");
             }
         })();
     </script>
