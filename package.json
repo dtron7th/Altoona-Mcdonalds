@@ -12,7 +12,6 @@
     "db:studio": "netlify dev:exec drizzle-kit studio"
   },
   "dependencies": {
-    "@netlify/neon": "^0.1.2",
     "dotenv": "^16.4.7",
     "drizzle-orm": "^0.45.2",
     "express": "^4.21.2",
