@@ -600,7 +600,7 @@
         <!-- --Book_Mark - (Bottom Action Buttons)--------------------- -->
         <div class="Bottom_Buttons">
             <button id="Add_Signiture_Button">Add your signiture</button>
-            <button id="Donate_Button">Donate to build games</button>
+            <button id="About_Button">About the game</button>
             <style aria-label="Bottom_Buttons_Style">
                 .Bottom_Buttons {
                     position: absolute;
@@ -745,8 +745,8 @@
                 refreshAddSignitureButtonState();
                 startSignitureGuardLiveRefresh();
 
-                document.getElementById('Donate_Button').addEventListener('click', function() {
-                    document.querySelector('.Donate_Window').style.display = 'flex';
+                document.getElementById('About_Button').addEventListener('click', function() {
+                    document.querySelector('.About_Window').style.display = 'flex';
                     document.querySelector('.Windows').style.display = 'flex';
                 });
                 
@@ -1463,14 +1463,14 @@
                 </style>
             </div>
 
-            <div class="Donate_Window">
-                <span id="Donate_Window_Finance_Percentage">0% : 0/$10,000</span>
-                <button id="Donate_Window_Close_Button">[ Close ]</button>
-                <div class="Donate_Window_Title">
-                    <p id="Donate_Window_Main_Title">Donate to Patton AI</p>
-                    <p id="Donate_Window_Sub_Title">Where critical decisions change the battlefield</p>
+            <div class="About_Window">
+                
+                <button id="About_Window_Close_Button">[ Close ]</button>
+                <div class="About_Window_Title">
+                    <p id="About_Window_Main_Title">About Patton AI</p>
+                    <p id="About_Window_Sub_Title">Where critical decisions change the battlefield</p>
                     <style>
-                        .Donate_Window_Title {
+                        .About_Window_Title {
                             position: absolute;
                             top: 60px;
                             width: 250px;
@@ -1480,12 +1480,12 @@
                             gap: 10px;
                         }
 
-                        #Donate_Window_Main_Title {
+                        #About_Window_Main_Title {
                             font-size: 16px;
                             text-align: center;
                         }
 
-                        #Donate_Window_Sub_Title {
+                        #About_Window_Sub_Title {
                             font-size: 12px;
                             text-align: center;
                         }
@@ -1494,60 +1494,51 @@
                     </style>
                     
                 </div>
-                <span id="Donate_Window_Finance_Count">$0</span>
-                <div class="Donate_Window_Bills">
-                    <button>$1</button>
-                    <button>$5</button>
-                    <button>$10</button>
-                    <button>$20</button>
-                    <button>$50</button>
-                    <button>$100</button>
-
-                    <style aria-label="Donate_Window_Bills_Style">
-                        .Donate_Window_Bills {
-                            position: absolute;
-                            top: 220px;
-                            display: flex;
-                            flex-direction: row;
-                            justify-content: center;
-                            align-items: center;
-                            gap: 10px;
-                        }
-
-                        .Donate_Window_Bills button {
-                            width: 50px;
-                            height: 30px;
-                            border: 1px solid rgb(0, 0, 0);
-                            background-color: rgb(255, 255, 255);
-                            cursor: pointer;
-                        }
-                    </style>
-                    <script aria-label="Donate_Window_Bills_Script">
-
-                    </script>
-                </div>
+                
 
                 <div class="Game_Info">
-                    <h2>Game Info</h2>
+                    <p>This game is not meant for children, its a serious game that is built on the strategies of sun tzu, a game idea founded on the true masteries of warfare, <br><br>
+
+Patton AI is a game where units are commanded by AI with the prompt that you type, you build your AI commanders, command small to medium sized units with single prompts, then based on computer algorithms, you watch your units take on AXIS powered armies. <br><br>
+
+with AI, you command to defend or command to attack, your units are like scouts, they seek to take out any enemy units or individual tanks. <br><br>
+
+you're playing on massive maps, this game is meant to be a sport, so players are always playing on massive maps, these maps will have you feeling like you're in WWII playing all 3 sectors, Ground, Air and Sea. <br><br>
+
+Command from anywhere rather you're commanding a sea blockade, or rolling armoreds on ground, you can command soldiers, takes and other armored vehicles, planes and bombers, even large air squads and ships, command fleets up to 80 ships, you can reenact D-Day or Midway, depends on what battle your fighting. <br><br>
+
+you can play this game in 2 ways, 1, this is actually a peer to peer strategic gambling game, you can bet play and bet money with your friends or other players, empty out pockets with your armies, (you will need your state ID - So said federal law) or you can play it like chess where you don't bet any money. your still playing the same epic game, but one is for betting peers and the other one is not. (clean and not as aggressive) <br><br>
+
+I hope you will enjoy this game as this game is going to take 6 months to 9 months to develop...using Unity3d and Windsurf Cascade, this game will be the most epic game of 2026 and of this decade.
+</p>
                     <style>
                         .Game_Info {
                             position: absolute;
-                            top: 300px;
+                            top: 130px;
                             width: calc(100% - 40px);
-                            height: calc(100% - 320px);
+                            height: calc(100% - 150px);
                             background-color: rgb(255, 255, 255);
-                            border: 1px solid rgb(0, 0, 0);
+                            
                             display: flex;
                             justify-content: center;
                             align-items: center;
+                            overflow-y: scroll;
+                        }
+
+                        .Game_Info p {
+                            position: absolute;
+                            width: calc(100% - 40px);
+                            top: 10px;
+                            font-size: 12px;
+                            text-align: center;
                         }
                     </style>
                     <script aria-label="Game_Info_Script">
 
                     </script>
                 </div>
-                <style aria-label="Donate_Window_Style">
-                    .Donate_Window {
+                <style aria-label="About_Window_Style">
+                    .About_Window {
                         position: relative;
                         width: 400px;
                         height: 550px;
@@ -1559,30 +1550,30 @@
                         display: none;
                     }
 
-                    #Donate_Window_Close_Button {
+                    #About_Window_Close_Button {
                         position: absolute;
                         top: 10px;
                         right: 10px;
                         font-size: 12px;
                     }
 
-                    #Donate_Window_Finance_Percentage {
+                    #About_Window_Finance_Percentage {
                         position: absolute;
                         top: 10px;
                         left: 10px;
                         font-size: 12px;
                     }
 
-                    #Donate_Window_Finance_Count {
+                    #About_Window_Finance_Count {
                         position: absolute;
                         top: 140px;
                         font-size: 20px;
                     }
 
                 </style>
-                <script aria-label="Donate_Window_Script">
-                    document.getElementById('Donate_Window_Close_Button').addEventListener('click', function() {
-                        document.querySelector('.Donate_Window').style.display = 'none';
+                <script aria-label="About_Window_Script">
+                    document.getElementById('About_Window_Close_Button').addEventListener('click', function() {
+                        document.querySelector('.About_Window').style.display = 'none';
                         document.querySelector('.Windows').style.display = 'none';
                     });
                 </script>
@@ -1609,8 +1600,6 @@
                 
             </script>
         </div>
-        
-
     </div>    
 </body>
 </html>
